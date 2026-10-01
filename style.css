@@ -565,35 +565,65 @@ div[data-testid="InputInstructions"],
    FIELD SELECTION UI
    ============================================================ */
 
-.field-section {
-    margin-top: 10px;
-    margin-bottom: 10px;
-}
-
-/* Checkbox spacing */
-
-div[data-testid="stCheckbox"] {
-    padding: 4px 0;
-}
-
-div[data-testid="stCheckbox"] label {
-    font-size: 14px;
-}
-
-/* Buttons */
+/* Select All / Clear All buttons */
 
 div[data-testid="stButton"] button {
-    border-radius: 6px;
+    min-height: 42px !important;
+    padding: 8px 18px !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    border-radius: 7px !important;
 }
 
-/* Custom fields textarea */
+
+/* ============================================================
+   CHECKBOX
+   ============================================================ */
+
+div[data-testid="stCheckbox"] {
+    padding: 7px 4px !important;
+    margin-bottom: 4px !important;
+}
+
+
+/* Checkbox label */
+
+div[data-testid="stCheckbox"] label {
+    font-size: 16px !important;
+    font-weight: 500 !important;
+    line-height: 1.4 !important;
+}
+
+
+/* Checkbox text */
+
+div[data-testid="stCheckbox"] label p {
+    font-size: 16px !important;
+    font-weight: 500 !important;
+}
+
+
+/* Checkbox itself */
+
+div[data-testid="stCheckbox"] input {
+    width: 18px !important;
+    height: 18px !important;
+}
+
+
+/* ============================================================
+   OTHER FIELDS
+   ============================================================ */
 
 textarea {
     border-radius: 8px !important;
 }
 
-/* Field selection columns */
+
+/* ============================================================
+   FIELD COLUMNS
+   ============================================================ */
 
 div[data-testid="column"] {
-    padding-right: 10px;
+    padding-right: 12px;
 }

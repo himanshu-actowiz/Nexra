@@ -318,10 +318,6 @@ def website_type_section(key):
 # REQUIRED FIELDS SECTION
 # ============================================================
 
-# ============================================================
-# REQUIRED FIELDS SECTION
-# ============================================================
-
 def required_fields_section(
     key,
     site_type
@@ -347,7 +343,7 @@ custom_field""",
         )
 
     # ========================================================
-    # GET PREDEFINED FIELDS
+    # GET FIELDS
     # ========================================================
 
     available_fields = FIELD_OPTIONS.get(
@@ -355,15 +351,38 @@ custom_field""",
         []
     )
 
-    # --------------------------------------------------------
-    # Session state keys
-    # --------------------------------------------------------
+    # ========================================================
+    # CHECKBOX KEYS
+    # ========================================================
 
-    selected_key = f"{key}_selected_fields"
-    select_all_key = f"{key}_select_all"
+    checkbox_keys = {
+        field: f"{key}_field_{field}"
+        for field in available_fields
+    }
 
-    if selected_key not in st.session_state:
-        st.session_state[selected_key] = []
+    # ========================================================
+    # SELECT ALL CALLBACK
+    # ========================================================
+
+    def select_all():
+
+        for field in available_fields:
+
+            st.session_state[
+                checkbox_keys[field]
+            ] = True
+
+    # ========================================================
+    # CLEAR ALL CALLBACK
+    # ========================================================
+
+    def clear_all():
+
+        for field in available_fields:
+
+            st.session_state[
+                checkbox_keys[field]
+            ] = False
 
     # ========================================================
     # HEADER
@@ -374,36 +393,28 @@ custom_field""",
     )
 
     # ========================================================
-    # SELECT ALL / CLEAR ALL
+    # BUTTONS
     # ========================================================
 
-    col1, col2, col3 = st.columns(
-        [1, 1, 5]
+    button_col1, button_col2, _ = st.columns(
+        [1.2, 1.2, 6]
     )
 
-    with col1:
+    with button_col1:
 
-        if st.button(
-            "Select All",
-            key=f"{key}_select_all_btn"
-        ):
+        st.button(
+            "✓ Select All",
+            key=f"{key}_select_all",
+            on_click=select_all
+        )
 
-            st.session_state[selected_key] = (
-                available_fields.copy()
-            )
+    with button_col2:
 
-            st.rerun()
-
-    with col2:
-
-        if st.button(
-            "Clear All",
-            key=f"{key}_clear_all_btn"
-        ):
-
-            st.session_state[selected_key] = []
-
-            st.rerun()
+        st.button(
+            "✕ Clear All",
+            key=f"{key}_clear_all",
+            on_click=clear_all
+        )
 
     # ========================================================
     # FIELD CHECKBOXES
@@ -411,8 +422,10 @@ custom_field""",
 
     selected_fields = []
 
-    # 3 columns
-    columns = st.columns(3)
+    columns = st.columns(
+        3,
+        gap="large"
+    )
 
     for index, field in enumerate(
         available_fields
@@ -426,11 +439,7 @@ custom_field""",
 
             checked = st.checkbox(
                 field,
-                value=(
-                    field in
-                    st.session_state[selected_key]
-                ),
-                key=f"{key}_field_{field}"
+                key=checkbox_keys[field]
             )
 
             if checked:
@@ -439,13 +448,8 @@ custom_field""",
                     field
                 )
 
-    # Save selected fields
-    st.session_state[selected_key] = (
-        selected_fields
-    )
-
     # ========================================================
-    # OTHER / CUSTOM FIELDS
+    # OTHER FIELDS
     # ========================================================
 
     st.markdown(
@@ -453,8 +457,8 @@ custom_field""",
     )
 
     custom_fields = st.text_area(
-        "Add custom fields",
-        height=120,
+        "Custom fields",
+        height=130,
         placeholder="""Add custom fields, one per line...
 
 Example:
@@ -501,7 +505,7 @@ discount_percentage""",
     if final_fields:
 
         st.caption(
-            f"{len(final_fields)} field(s) selected"
+            f"✓ {len(final_fields)} field(s) selected"
         )
 
     return "\n".join(
