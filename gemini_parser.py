@@ -17,9 +17,26 @@ def generate_parser(
     # --------------------------------------------------------
 
     if not api_key or not api_key.strip():
-
         raise ValueError(
             "Gemini API key is required."
+        )
+
+    # --------------------------------------------------------
+    # Validate Response Data
+    # --------------------------------------------------------
+
+    if not response_data or not response_data.strip():
+        raise ValueError(
+            "Response data is required."
+        )
+
+    # --------------------------------------------------------
+    # Validate Required Fields
+    # --------------------------------------------------------
+
+    if not required_fields or not required_fields.strip():
+        raise ValueError(
+            "Required fields are required."
         )
 
     # --------------------------------------------------------
@@ -166,6 +183,31 @@ def parse_data(data):
 
 41. Do not truncate the response during analysis.
 
+42. Make the parser robust against missing HTML elements,
+    missing JSON keys, empty values, and unexpected null values.
+
+43. Do not assume that the first matching element is the
+    correct record if multiple records are present.
+
+44. When multiple records are present, preserve the relationship
+    between fields belonging to the same record.
+
+45. For prices, ratings, quantities, availability, IDs,
+    URLs, and other structured values, extract the actual value
+    from the response without inventing or modifying it.
+
+46. If a requested field is not present anywhere in the
+    supplied response, return None for that field.
+
+47. Do not generate sample, dummy, or hardcoded values.
+
+48. Do not hardcode values from the example response into
+    the parser.
+
+49. The parser must dynamically parse the supplied `data`.
+
+50. The final output must be executable Python code.
+
 Expected output:
 
 def parse_data(data):
@@ -186,8 +228,12 @@ def parse_data(data):
     # Validate Gemini Response
     # --------------------------------------------------------
 
-    if not response or not response.text:
+    if not response:
+        raise ValueError(
+            "Gemini returned an empty response."
+        )
 
+    if not response.text:
         raise ValueError(
             "Gemini returned an empty response."
         )

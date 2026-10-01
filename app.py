@@ -12,7 +12,7 @@ from gemini_parser import generate_parser
 # ============================================================
 
 st.set_page_config(
-    page_title="Parser Code Generator",
+    page_title="Nexra",
     page_icon="🕷️",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -74,7 +74,9 @@ WEBSITE_TYPES = [
 # ============================================================
 
 def get_api_key():
+
     st.sidebar.markdown("## 🔑 Gemini API")
+
     st.sidebar.caption(
         "Enter your Gemini API key to use the parser generator."
     )
@@ -91,19 +93,45 @@ def get_api_key():
         use_container_width=True,
         key="submit_gemini_api"
     ):
+
         if api_key_input.strip():
-            st.session_state["gemini_api_key"] = api_key_input.strip()
-            st.session_state["gemini_api_key_submitted"] = True
+
+            st.session_state["gemini_api_key"] = (
+                api_key_input.strip()
+            )
+
+            st.session_state[
+                "gemini_api_key_submitted"
+            ] = True
+
         else:
+
             st.session_state["gemini_api_key"] = ""
-            st.session_state["gemini_api_key_submitted"] = False
 
-    if st.session_state.get("gemini_api_key_submitted", False):
-        st.sidebar.success("✅ API key applied.")
+            st.session_state[
+                "gemini_api_key_submitted"
+            ] = False
+
+    if st.session_state.get(
+        "gemini_api_key_submitted",
+        False
+    ):
+
+        st.sidebar.success(
+            "✅ API key applied."
+        )
+
     else:
-        st.sidebar.info("API key required.")
 
-    return st.session_state.get("gemini_api_key", "")
+        st.sidebar.info(
+            "API key required."
+        )
+
+    return st.session_state.get(
+        "gemini_api_key",
+        ""
+    )
+
 
 # ============================================================
 # GET USER API KEY
@@ -147,6 +175,7 @@ def parse_curl(curl):
             i += 1
 
             if i < len(parts):
+
                 url = parts[i]
 
         elif (
@@ -155,6 +184,7 @@ def parse_curl(curl):
         ):
 
             if url is None:
+
                 url = part
 
         # ----------------------------------------------------
@@ -179,7 +209,9 @@ def parse_curl(curl):
                         1
                     )
 
-                    headers[key.strip()] = value.strip()
+                    headers[
+                        key.strip()
+                    ] = value.strip()
 
         # ----------------------------------------------------
         # HTTP METHOD
@@ -216,6 +248,7 @@ def parse_curl(curl):
                 # If body exists and method wasn't specified,
                 # cURL normally uses POST.
                 if method == "GET":
+
                     method = "POST"
 
         i += 1
@@ -263,6 +296,7 @@ def execute_request(request_data):
 def clean_generated_code(parser_code):
 
     if not parser_code:
+
         return ""
 
     clean_code = parser_code.strip()
@@ -432,8 +466,8 @@ def generate_and_execute(
     # --------------------------------------------------------
 
     with st.spinner(
-        "Gemini is analyzing the response and "
-        "generating parse_data()..."
+        "Gemini is analyzing the response "
+        "and generating parse_data()..."
     ):
 
         try:
@@ -673,18 +707,6 @@ curl --url 'https://example.com/product' \\
         use_container_width=True,
         key="curl_generate"
     ):
-
-        # --------------------------------------------------------
-        # API KEY VALIDATION
-        # --------------------------------------------------------
-
-        if not api_key:
-
-            st.warning(
-                "Please enter your Gemini API key in the sidebar."
-            )
-
-            st.stop()
 
         # --------------------------------------------------------
         # CURL VALIDATION
@@ -1084,18 +1106,6 @@ with response_tab:
         use_container_width=True,
         key="response_generate"
     ):
-
-        # --------------------------------------------------------
-        # API KEY VALIDATION
-        # --------------------------------------------------------
-
-        if not api_key:
-
-            st.warning(
-                "Please enter your Gemini API key in the sidebar."
-            )
-
-            st.stop()
 
         # --------------------------------------------------------
         # RESPONSE VALIDATION
