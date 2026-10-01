@@ -1,6 +1,139 @@
 import os
+import re
+import threading
 
 from google import genai
+
+
+# ============================================================
+# GEMINI KEY POOL STATE
+# ============================================================
+
+_key_lock = threading.Lock()
+_current_key_index = 0
+
+
+# ============================================================
+# GET GEMINI API KEYS
+# ============================================================
+
+def get_gemini_keys():
+
+    keys = []
+
+    # --------------------------------------------------------
+    # Find all numbered Gemini API keys dynamically
+    # Example:
+    #
+    # GEMINI_API_KEY_1
+    # GEMINI_API_KEY_2
+    # GEMINI_API_KEY_10
+    # GEMINI_API_KEY_25
+    # --------------------------------------------------------
+
+    numbered_keys = []
+
+    for env_name, env_value in os.environ.items():
+
+        match = re.fullmatch(
+            r"GEMINI_API_KEY_(\d+)",
+            env_name
+        )
+
+        if not match:
+            continue
+
+        if not env_value:
+            continue
+
+        if not env_value.strip():
+            continue
+
+        key_number = int(
+            match.group(1)
+        )
+
+        numbered_keys.append(
+            (
+                key_number,
+                env_value.strip()
+            )
+        )
+
+    # --------------------------------------------------------
+    # Sort by numeric key number
+    #
+    # 1, 2, 3, 10, 11
+    #
+    # Instead of:
+    #
+    # 1, 10, 11, 2, 3
+    # --------------------------------------------------------
+
+    numbered_keys.sort(
+        key=lambda item: item[0]
+    )
+
+    # --------------------------------------------------------
+    # Add numbered keys
+    # --------------------------------------------------------
+
+    for _, key in numbered_keys:
+
+        keys.append(
+            key
+        )
+
+    # --------------------------------------------------------
+    # Backward Compatibility
+    #
+    # If no numbered keys exist, use:
+    #
+    # GEMINI_API_KEY
+    # --------------------------------------------------------
+
+    if not keys:
+
+        api_key = os.getenv(
+            "GEMINI_API_KEY"
+        )
+
+        if api_key and api_key.strip():
+
+            keys.append(
+                api_key.strip()
+            )
+
+    # --------------------------------------------------------
+    # Validate Key Pool
+    # --------------------------------------------------------
+
+    if not keys:
+
+        raise ValueError(
+            "No Gemini API keys are configured."
+        )
+
+    return keys
+
+
+# ============================================================
+# GET STARTING KEY INDEX
+# ============================================================
+
+def get_start_index(total_keys):
+
+    global _current_key_index
+
+    with _key_lock:
+
+        index = _current_key_index
+
+        _current_key_index = (
+            _current_key_index + 1
+        ) % total_keys
+
+    return index
 
 
 # ============================================================
@@ -12,20 +145,6 @@ def generate_parser(
     site_type,
     required_fields
 ):
-
-    # --------------------------------------------------------
-    # Get Gemini API Key from Environment Variable
-    # --------------------------------------------------------
-
-    api_key = os.getenv(
-        "GEMINI_API_KEY"
-    )
-
-    if not api_key or not api_key.strip():
-
-        raise ValueError(
-            "GEMINI_API_KEY is not configured."
-        )
 
     # --------------------------------------------------------
     # Validate Response Data
@@ -48,11 +167,20 @@ def generate_parser(
         )
 
     # --------------------------------------------------------
-    # Create Gemini Client
+    # Get Gemini API Key Pool
     # --------------------------------------------------------
 
-    client = genai.Client(
-        api_key=api_key.strip()
+    keys = get_gemini_keys()
+
+    # --------------------------------------------------------
+    # Select Starting Key
+    #
+    # Different requests will normally start with
+    # different configured keys.
+    # --------------------------------------------------------
+
+    start_index = get_start_index(
+        len(keys)
     )
 
     # --------------------------------------------------------
@@ -224,28 +352,72 @@ def parse_data(data):
 """
 
     # --------------------------------------------------------
-    # Generate Parser
+    # Try Gemini Keys
     # --------------------------------------------------------
 
-    response = client.models.generate_content(
-        model="gemini-3.5-flash-lite",
-        contents=prompt
+    last_error = None
+
+    for attempt in range(len(keys)):
+
+        key_index = (
+            start_index + attempt
+        ) % len(keys)
+
+        api_key = keys[key_index]
+
+        try:
+
+            # ------------------------------------------------
+            # Create Gemini Client
+            # ------------------------------------------------
+
+            client = genai.Client(
+                api_key=api_key
+            )
+
+            # ------------------------------------------------
+            # Generate Parser
+            # ------------------------------------------------
+
+            response = client.models.generate_content(
+                model="gemini-3.5-flash-lite",
+                contents=prompt
+            )
+
+            # ------------------------------------------------
+            # Validate Gemini Response
+            # ------------------------------------------------
+
+            if not response:
+
+                raise ValueError(
+                    "Gemini returned an empty response."
+                )
+
+            if not response.text:
+
+                raise ValueError(
+                    "Gemini returned an empty response."
+                )
+
+            # ------------------------------------------------
+            # Success
+            # ------------------------------------------------
+
+            return response.text.strip()
+
+        except Exception as e:
+
+            # Store error and try next configured key
+            last_error = e
+
+            continue
+
+    # --------------------------------------------------------
+    # All Keys Failed
+    # --------------------------------------------------------
+
+    raise RuntimeError(
+        "All configured Gemini API keys failed. "
+        f"Last error: {last_error}"
     )
-
-    # --------------------------------------------------------
-    # Validate Gemini Response
-    # --------------------------------------------------------
-
-    if not response:
-
-        raise ValueError(
-            "Gemini returned an empty response."
-        )
-
-    if not response.text:
-
-        raise ValueError(
-            "Gemini returned an empty response."
-        )
-
-    return response.text.strip()
