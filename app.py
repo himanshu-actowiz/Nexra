@@ -3,7 +3,7 @@ import requests
 import shlex
 import pandas as pd
 from pathlib import Path
-
+from field_config import FIELD_OPTIONS
 from gemini_parser import generate_parser
 
 
@@ -318,22 +318,85 @@ def website_type_section(key):
 # REQUIRED FIELDS SECTION
 # ============================================================
 
-def required_fields_section(key):
+def required_fields_section(
+    key,
+    site_type
+):
 
-    return st.text_area(
-        "Required Fields",
-        height=180,
-        placeholder="""Example:
+    # ========================================================
+    # OTHER
+    # ========================================================
 
+    if site_type == "Other":
+
+        return st.text_area(
+            "Fields to Extract",
+            height=180,
+            placeholder="""Enter fields, one per line...
+
+Example:
 title
 price
 image_url
-availability
-brand
-product_url""",
-        key=key
+custom_field""",
+            key=f"{key}_other_fields"
+        )
+
+    # ========================================================
+    # PREDEFINED CATEGORY
+    # ========================================================
+
+    available_fields = FIELD_OPTIONS.get(
+        site_type,
+        []
     )
 
+    selected_fields = st.multiselect(
+        "Select Fields",
+        options=available_fields,
+        key=f"{key}_selected_fields",
+        placeholder="Select fields to extract..."
+    )
+
+    # ========================================================
+    # CUSTOM FIELDS
+    # ========================================================
+
+    custom_fields = st.text_area(
+        "Other Fields",
+        height=100,
+        placeholder="""Add custom fields, one per line...
+
+Example:
+store_id
+membership_price
+discount_percentage""",
+        key=f"{key}_custom_fields"
+    )
+
+    # ========================================================
+    # COMBINE FIELDS
+    # ========================================================
+
+    final_fields = []
+
+    for field in selected_fields:
+
+        if field not in final_fields:
+
+            final_fields.append(field)
+
+    for field in custom_fields.splitlines():
+
+        field = field.strip()
+
+        if field and field not in final_fields:
+
+            final_fields.append(field)
+
+    return "\n".join(
+        final_fields
+    )
 
 # ============================================================
 # GENERATE + EXECUTE PARSER
@@ -609,7 +672,8 @@ curl --url 'https://example.com/product' \\
     )
 
     curl_fields = required_fields_section(
-        "curl_required_fields"
+        "curl_required_fields",
+        curl_site_type
     )
 
     # ============================================================
@@ -1007,7 +1071,8 @@ with response_tab:
     )
 
     response_fields = required_fields_section(
-        "response_required_fields"
+        "response_required_fields",
+        response_site_type
     )
 
     # ============================================================
