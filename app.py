@@ -475,8 +475,7 @@ def generate_and_execute(
             parser_code = generate_parser(
                 response_data,
                 site_type,
-                fields,
-                user_api_key
+                fields
             )
 
         except Exception as e:

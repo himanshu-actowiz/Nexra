@@ -1,3 +1,5 @@
+import os
+
 from google import genai
 
 
@@ -8,17 +10,21 @@ from google import genai
 def generate_parser(
     response_data,
     site_type,
-    required_fields,
-    api_key
+    required_fields
 ):
 
     # --------------------------------------------------------
-    # Validate API Key
+    # Get Gemini API Key from Environment Variable
     # --------------------------------------------------------
 
+    api_key = os.getenv(
+        "GEMINI_API_KEY"
+    )
+
     if not api_key or not api_key.strip():
+
         raise ValueError(
-            "Gemini API key is required."
+            "GEMINI_API_KEY is not configured."
         )
 
     # --------------------------------------------------------
@@ -26,6 +32,7 @@ def generate_parser(
     # --------------------------------------------------------
 
     if not response_data or not response_data.strip():
+
         raise ValueError(
             "Response data is required."
         )
@@ -35,6 +42,7 @@ def generate_parser(
     # --------------------------------------------------------
 
     if not required_fields or not required_fields.strip():
+
         raise ValueError(
             "Required fields are required."
         )
@@ -229,11 +237,13 @@ def parse_data(data):
     # --------------------------------------------------------
 
     if not response:
+
         raise ValueError(
             "Gemini returned an empty response."
         )
 
     if not response.text:
+
         raise ValueError(
             "Gemini returned an empty response."
         )
