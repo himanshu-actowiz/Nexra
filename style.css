@@ -1,0 +1,562 @@
+/* ============================================================
+   GLOBAL LAYOUT
+   ============================================================ */
+
+.block-container {
+    max-width: 1450px;
+    padding-top: 2rem;
+    padding-bottom: 3rem;
+}
+
+
+/* ============================================================
+   MAIN HEADER
+   ============================================================ */
+
+.main-title {
+    font-size: 40px;
+    font-weight: 750;
+    letter-spacing: -1px;
+    color: #f3f4f6;
+    margin-bottom: 5px;
+}
+
+.main-description {
+    font-size: 15px;
+    color: #9ca3af;
+    margin-bottom: 26px;
+    line-height: 1.6;
+}
+
+
+/* ============================================================
+   TOP NAVIGATION / TABS
+   ============================================================ */
+
+.stTabs {
+    margin-top: 8px;
+}
+
+.stTabs [data-baseweb="tab-list"] {
+    display: flex;
+    gap: 8px;
+    padding: 0;
+    background: transparent;
+    border-bottom: none;
+}
+
+
+/* Normal tab */
+
+.stTabs [data-baseweb="tab"] {
+    height: 44px;
+
+    padding: 0 20px;
+
+    background: #181b22;
+    color: #a7adb8;
+
+    border: 1px solid #30343d;
+    border-radius: 8px;
+
+    font-size: 14px;
+    font-weight: 600;
+
+    transition:
+        background 0.15s ease,
+        border-color 0.15s ease,
+        color 0.15s ease;
+}
+
+
+/* Hover */
+
+.stTabs [data-baseweb="tab"]:hover {
+    background: #20242c;
+    color: #e5e7eb;
+    border-color: #454b56;
+}
+
+
+/* Active tab */
+
+.stTabs [data-baseweb="tab"][aria-selected="true"] {
+    background: #e5e7eb !important;
+    color: #111318 !important;
+    border-color: #e5e7eb !important;
+}
+
+
+/* Remove default Streamlit underline */
+
+.stTabs [data-baseweb="tab-highlight"] {
+    display: none;
+}
+
+.stTabs [data-baseweb="tab-border"] {
+    display: none;
+}
+
+
+/* ============================================================
+   SECTION HEADER
+   ============================================================ */
+
+.section-header {
+    display: flex;
+    align-items: center;
+
+    gap: 10px;
+
+    margin-top: 14px;
+    margin-bottom: 4px;
+}
+
+.section-icon {
+    font-size: 25px;
+    line-height: 1;
+}
+
+.section-title {
+    font-size: 28px;
+    font-weight: 700;
+
+    color: #f3f4f6;
+
+    line-height: 1.2;
+}
+
+.section-description {
+    color: #8f96a3;
+
+    font-size: 14px;
+
+    margin-top: 6px;
+    margin-bottom: 24px;
+
+    line-height: 1.6;
+}
+
+
+/* ============================================================
+   SUB HEADINGS
+   ============================================================ */
+
+h1,
+h2,
+h3,
+h4 {
+    color: #f3f4f6 !important;
+}
+
+h3 {
+    margin-top: 18px;
+    margin-bottom: 12px;
+}
+
+
+/* ============================================================
+   OUTPUT HEADINGS
+   ============================================================ */
+
+.output-title {
+    font-size: 20px;
+
+    font-weight: 700;
+
+    color: #e5e7eb;
+
+    margin-bottom: 10px;
+}
+
+
+/* ============================================================
+   BUTTONS
+   ============================================================ */
+
+.stButton > button {
+    min-height: 44px;
+
+    border-radius: 8px;
+
+    border: 1px solid #3a3f49;
+
+    background: #20242b;
+
+    color: #e5e7eb;
+
+    font-size: 14px;
+
+    font-weight: 650;
+
+    transition:
+        background 0.15s ease,
+        border-color 0.15s ease,
+        transform 0.1s ease;
+}
+
+
+/* Button hover */
+
+.stButton > button:hover {
+    background: #292e37;
+
+    border-color: #555b66;
+
+    color: #ffffff;
+}
+
+
+/* Button active */
+
+.stButton > button:active {
+    transform: translateY(1px);
+}
+
+
+/* Primary button */
+
+.stButton > button[kind="primary"] {
+    background: #e5e7eb;
+
+    color: #111318;
+
+    border-color: #e5e7eb;
+
+    font-weight: 700;
+}
+
+
+/* Primary hover */
+
+.stButton > button[kind="primary"]:hover {
+    background: #ffffff;
+
+    color: #000000;
+
+    border-color: #ffffff;
+}
+
+
+/* ============================================================
+   TEXT INPUTS
+   ============================================================ */
+
+.stTextInput input,
+.stTextArea textarea {
+    background: #11141a !important;
+
+    color: #e5e7eb !important;
+
+    border: 1px solid #30343d !important;
+
+    border-radius: 8px !important;
+}
+
+
+/* Input focus */
+
+.stTextInput input:focus,
+.stTextArea textarea:focus {
+    border-color: #606772 !important;
+
+    box-shadow: 0 0 0 1px #606772 !important;
+}
+
+
+/* Placeholder */
+
+.stTextInput input::placeholder,
+.stTextArea textarea::placeholder {
+    color: #646b77 !important;
+}
+
+
+/* ============================================================
+   SELECTBOX
+   ============================================================ */
+
+div[data-baseweb="select"] > div {
+    background: #11141a !important;
+
+    border: 1px solid #30343d !important;
+
+    border-radius: 8px !important;
+
+    color: #e5e7eb !important;
+}
+
+
+/* Selectbox text */
+
+div[data-baseweb="select"] span {
+    color: #e5e7eb !important;
+}
+
+
+/* Selectbox focus */
+
+div[data-baseweb="select"]:focus-within > div {
+    border-color: #606772 !important;
+}
+
+
+/* ============================================================
+   SELECTBOX DROPDOWN
+   ============================================================ */
+
+div[data-baseweb="popover"] {
+    background: #171a20 !important;
+
+    border: 1px solid #30343d !important;
+
+    border-radius: 8px !important;
+}
+
+ul[role="listbox"] {
+    background: #171a20 !important;
+}
+
+li[role="option"] {
+    background: #171a20 !important;
+
+    color: #d1d5db !important;
+}
+
+li[role="option"]:hover {
+    background: #242932 !important;
+
+    color: #ffffff !important;
+}
+
+
+/* ============================================================
+   FILE UPLOADER
+   ============================================================ */
+
+[data-testid="stFileUploader"] {
+    background: #11141a;
+
+    border: 1px solid #30343d;
+
+    border-radius: 9px;
+
+    padding: 8px;
+}
+
+
+/* File uploader text */
+
+[data-testid="stFileUploader"] label {
+    color: #d1d5db !important;
+}
+
+
+/* ============================================================
+   CODE BLOCK
+   ============================================================ */
+
+.stCodeBlock {
+    border-radius: 8px;
+}
+
+
+/* ============================================================
+   EXPANDER
+   ============================================================ */
+
+[data-testid="stExpander"] {
+    background: #15181e;
+
+    border: 1px solid #2e333c;
+
+    border-radius: 8px;
+}
+
+
+/* Expander header */
+
+[data-testid="stExpander"] summary {
+    color: #d1d5db !important;
+
+    font-weight: 600;
+}
+
+
+/* ============================================================
+   METRIC
+   ============================================================ */
+
+[data-testid="stMetric"] {
+    background: #15181e;
+
+    border: 1px solid #2e333c;
+
+    border-radius: 8px;
+
+    padding: 14px;
+}
+
+
+/* Metric label */
+
+[data-testid="stMetricLabel"] {
+    color: #8f96a3 !important;
+}
+
+
+/* Metric value */
+
+[data-testid="stMetricValue"] {
+    color: #f3f4f6 !important;
+}
+
+
+/* ============================================================
+   DATAFRAME
+   ============================================================ */
+
+[data-testid="stDataFrame"] {
+    border: 1px solid #30343d;
+
+    border-radius: 8px;
+
+    overflow: hidden;
+}
+
+
+/* ============================================================
+   ALERTS
+   ============================================================ */
+
+[data-testid="stAlert"] {
+    border-radius: 8px;
+}
+
+
+/* ============================================================
+   SUCCESS MESSAGE
+   ============================================================ */
+
+div[data-testid="stAlert"][kind="success"] {
+    border-radius: 8px;
+}
+
+
+/* ============================================================
+   CAPTION
+   ============================================================ */
+
+.stCaption {
+    color: #737b88 !important;
+}
+
+
+/* ============================================================
+   DIVIDER
+   ============================================================ */
+
+hr {
+    border: none !important;
+
+    border-top: 1px solid #292e37 !important;
+
+    margin-top: 24px !important;
+
+    margin-bottom: 24px !important;
+}
+
+
+/* ============================================================
+   JSON OUTPUT
+   ============================================================ */
+
+[data-testid="stJson"] {
+    background: #11141a;
+
+    border: 1px solid #30343d;
+
+    border-radius: 8px;
+
+    padding: 10px;
+}
+
+
+/* ============================================================
+   SPINNER
+   ============================================================ */
+
+[data-testid="stSpinner"] {
+    color: #c5cad2;
+}
+
+
+/* ============================================================
+   SCROLLBAR
+   ============================================================ */
+
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #11141a;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #353b45;
+
+    border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #4b525e;
+}
+
+
+/* ============================================================
+   MOBILE RESPONSIVE
+   ============================================================ */
+
+@media (max-width: 768px) {
+
+    .block-container {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+
+    .main-title {
+        font-size: 32px;
+    }
+
+    .section-title {
+        font-size: 24px;
+    }
+
+    .stTabs [data-baseweb="tab"] {
+        padding: 0 12px;
+
+        font-size: 12px;
+    }
+}
+
+/* ============================================================
+   SIDEBAR GEMINI API
+   ============================================================ */
+
+section[data-testid="stSidebar"] button {
+    border-radius: 8px;
+    font-weight: 600;
+    margin-top: 8px;
+}
+
+section[data-testid="stSidebar"] input {
+    border-radius: 8px;
+}
+
+/* Hide "Press Enter to apply" */
+div[data-testid="InputInstructions"],
+[data-testid="InputInstructions"] {
+    display: none !important;
+}

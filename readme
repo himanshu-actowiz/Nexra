@@ -1,0 +1,1 @@
+RUN COMMAND : python -m streamlit run app.py
