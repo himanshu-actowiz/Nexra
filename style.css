@@ -560,3 +560,40 @@ div[data-testid="InputInstructions"],
 [data-testid="InputInstructions"] {
     display: none !important;
 }
+
+/* ============================================================
+   FIELD SELECTION UI
+   ============================================================ */
+
+.field-section {
+    margin-top: 10px;
+    margin-bottom: 10px;
+}
+
+/* Checkbox spacing */
+
+div[data-testid="stCheckbox"] {
+    padding: 4px 0;
+}
+
+div[data-testid="stCheckbox"] label {
+    font-size: 14px;
+}
+
+/* Buttons */
+
+div[data-testid="stButton"] button {
+    border-radius: 6px;
+}
+
+/* Custom fields textarea */
+
+textarea {
+    border-radius: 8px !important;
+}
+
+/* Field selection columns */
+
+div[data-testid="column"] {
+    padding-right: 10px;
+}

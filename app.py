@@ -318,13 +318,17 @@ def website_type_section(key):
 # REQUIRED FIELDS SECTION
 # ============================================================
 
+# ============================================================
+# REQUIRED FIELDS SECTION
+# ============================================================
+
 def required_fields_section(
     key,
     site_type
 ):
 
     # ========================================================
-    # OTHER
+    # OTHER CATEGORY
     # ========================================================
 
     if site_type == "Other":
@@ -343,7 +347,7 @@ custom_field""",
         )
 
     # ========================================================
-    # PREDEFINED CATEGORY
+    # GET PREDEFINED FIELDS
     # ========================================================
 
     available_fields = FIELD_OPTIONS.get(
@@ -351,27 +355,114 @@ custom_field""",
         []
     )
 
-    selected_fields = st.multiselect(
-        "Select Fields",
-        options=available_fields,
-        key=f"{key}_selected_fields",
-        placeholder="Select fields to extract..."
+    # --------------------------------------------------------
+    # Session state keys
+    # --------------------------------------------------------
+
+    selected_key = f"{key}_selected_fields"
+    select_all_key = f"{key}_select_all"
+
+    if selected_key not in st.session_state:
+        st.session_state[selected_key] = []
+
+    # ========================================================
+    # HEADER
+    # ========================================================
+
+    st.markdown(
+        "### Select Fields"
     )
 
     # ========================================================
-    # CUSTOM FIELDS
+    # SELECT ALL / CLEAR ALL
     # ========================================================
 
+    col1, col2, col3 = st.columns(
+        [1, 1, 5]
+    )
+
+    with col1:
+
+        if st.button(
+            "Select All",
+            key=f"{key}_select_all_btn"
+        ):
+
+            st.session_state[selected_key] = (
+                available_fields.copy()
+            )
+
+            st.rerun()
+
+    with col2:
+
+        if st.button(
+            "Clear All",
+            key=f"{key}_clear_all_btn"
+        ):
+
+            st.session_state[selected_key] = []
+
+            st.rerun()
+
+    # ========================================================
+    # FIELD CHECKBOXES
+    # ========================================================
+
+    selected_fields = []
+
+    # 3 columns
+    columns = st.columns(3)
+
+    for index, field in enumerate(
+        available_fields
+    ):
+
+        column = columns[
+            index % 3
+        ]
+
+        with column:
+
+            checked = st.checkbox(
+                field,
+                value=(
+                    field in
+                    st.session_state[selected_key]
+                ),
+                key=f"{key}_field_{field}"
+            )
+
+            if checked:
+
+                selected_fields.append(
+                    field
+                )
+
+    # Save selected fields
+    st.session_state[selected_key] = (
+        selected_fields
+    )
+
+    # ========================================================
+    # OTHER / CUSTOM FIELDS
+    # ========================================================
+
+    st.markdown(
+        "### Other Fields"
+    )
+
     custom_fields = st.text_area(
-        "Other Fields",
-        height=100,
+        "Add custom fields",
+        height=120,
         placeholder="""Add custom fields, one per line...
 
 Example:
 store_id
 membership_price
 discount_percentage""",
-        key=f"{key}_custom_fields"
+        key=f"{key}_custom_fields",
+        label_visibility="collapsed"
     )
 
     # ========================================================
@@ -380,24 +471,43 @@ discount_percentage""",
 
     final_fields = []
 
+    # Predefined fields
     for field in selected_fields:
 
         if field not in final_fields:
 
-            final_fields.append(field)
+            final_fields.append(
+                field
+            )
 
+    # Custom fields
     for field in custom_fields.splitlines():
 
         field = field.strip()
 
-        if field and field not in final_fields:
+        if (
+            field
+            and field not in final_fields
+        ):
 
-            final_fields.append(field)
+            final_fields.append(
+                field
+            )
+
+    # ========================================================
+    # SELECTED COUNT
+    # ========================================================
+
+    if final_fields:
+
+        st.caption(
+            f"{len(final_fields)} field(s) selected"
+        )
 
     return "\n".join(
         final_fields
     )
-
+    
 # ============================================================
 # GENERATE + EXECUTE PARSER
 # ============================================================
