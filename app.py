@@ -70,77 +70,6 @@ WEBSITE_TYPES = [
 
 
 # ============================================================
-# GEMINI API KEY
-# ============================================================
-
-def get_api_key():
-
-    st.sidebar.markdown("## 🔑 Gemini API")
-
-    st.sidebar.caption(
-        "Enter your Gemini API key to use the parser generator."
-    )
-
-    api_key_input = st.sidebar.text_input(
-        "Gemini API Key",
-        type="password",
-        placeholder="Enter your Gemini API key",
-        key="gemini_api_key_input"
-    )
-
-    if st.sidebar.button(
-        "🔑 Submit API Key",
-        use_container_width=True,
-        key="submit_gemini_api"
-    ):
-
-        if api_key_input.strip():
-
-            st.session_state["gemini_api_key"] = (
-                api_key_input.strip()
-            )
-
-            st.session_state[
-                "gemini_api_key_submitted"
-            ] = True
-
-        else:
-
-            st.session_state["gemini_api_key"] = ""
-
-            st.session_state[
-                "gemini_api_key_submitted"
-            ] = False
-
-    if st.session_state.get(
-        "gemini_api_key_submitted",
-        False
-    ):
-
-        st.sidebar.success(
-            "✅ API key applied."
-        )
-
-    else:
-
-        st.sidebar.info(
-            "API key required."
-        )
-
-    return st.session_state.get(
-        "gemini_api_key",
-        ""
-    )
-
-
-# ============================================================
-# GET USER API KEY
-# ============================================================
-
-api_key = get_api_key()
-
-
-# ============================================================
 # PARSE CURL
 # ============================================================
 
@@ -413,21 +342,8 @@ product_url""",
 def generate_and_execute(
     response_data,
     site_type,
-    fields,
-    user_api_key
+    fields
 ):
-
-    # --------------------------------------------------------
-    # API KEY VALIDATION
-    # --------------------------------------------------------
-
-    if not user_api_key:
-
-        st.warning(
-            "Please enter your Gemini API key in the sidebar."
-        )
-
-        return
 
     # --------------------------------------------------------
     # RESPONSE VALIDATION
@@ -948,8 +864,7 @@ curl --url 'https://example.com/product' \\
         generate_and_execute(
             response.text,
             curl_site_type,
-            curl_fields,
-            api_key
+            curl_fields
         )
 
 
@@ -1198,6 +1113,5 @@ with response_tab:
         generate_and_execute(
             response_data,
             response_site_type,
-            response_fields,
-            api_key
+            response_fields
         )
