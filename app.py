@@ -447,27 +447,47 @@ custom_field""",
                 selected_fields.append(
                     field
                 )
-
-    # ========================================================
+                
+    # ============================================================
     # OTHER FIELDS
-    # ========================================================
+    # ============================================================
 
-    st.markdown(
-        "### Other Fields"
-    )
+    st.markdown("### Other Fields")
 
     custom_fields = st.text_area(
         "Custom fields",
         height=130,
         placeholder="""Add custom fields, one per line...
 
-Example:
-store_id
-membership_price
-discount_percentage""",
+    Example:
+    store_id
+    membership_price
+    discount_percentage""",
         key=f"{key}_custom_fields",
         label_visibility="collapsed"
     )
+
+    # ============================================================
+    # REFERENCE IMAGE UPLOAD
+    # ============================================================
+
+    st.markdown("#### Reference Image (Optional)")
+
+    uploaded_image = st.file_uploader(
+        "Upload screenshot or reference image",
+        type=["png", "jpg", "jpeg", "webp"],
+        accept_multiple_files=False,
+        key=f"{key}_reference_image",
+        help="Upload a screenshot showing the fields you want to extract."
+    )
+
+    if uploaded_image is not None:
+        st.image(
+            uploaded_image,
+            caption="Reference Screenshot",
+            use_container_width=True
+        )
+
 
     # ========================================================
     # COMBINE FIELDS
