@@ -136,119 +136,326 @@ def generate_parser(
     # --------------------------------------------------------
     # Gemini Prompt
     # --------------------------------------------------------
+   
     prompt = f"""
-You are an expert Python web scraping engineer.
-Your job is to analyze the website response and generate a
-complete Python parsing function.
-Website Type:
-{site_type}
-Required Fields:
-{required_fields}
-Website Response:
-{response_data}
-REFERENCE IMAGE:
-A reference screenshot may be attached to this request.
-If an image is attached:
-- Inspect the screenshot to understand the requested visible fields and labels/values.
-- Compare those visible fields with the supplied HTML/JSON/text response.
-- Use the screenshot only to identify relevant data and likely matching structures.
-- Extract values from `data`, not by hardcoding screenshot values.
-- If a field is visible in the screenshot but its underlying value is absent from `data`, return None for that field.
-- Do not invent selectors or data that are not present in the supplied response.
-IMPORTANT REQUIREMENTS:
-1. Analyze the actual response carefully.
-2. The response can be either:
-   - HTML
-   - JSON
-   - JSON embedded inside HTML
-   - Other structured response data
-3. Determine the correct parsing method automatically.
-4. If the response is HTML:
-   - Use lxml / XPath or another reliable HTML parsing approach.
-   - Select the correct elements from the actual response.
-   - Use selectors based ONLY on elements actually present
-     in the supplied response.
-5. If the response is JSON:
-   - Parse the actual JSON structure.
-   - Use the real keys and nested structure present in the response.
-   - Do not invent keys.
-6. If JSON data is embedded inside HTML:
-   - Extract and parse the embedded JSON correctly.
-   - Use the actual script/data structure present in the response.
-7. Generate ONE complete function only.
-8. The function MUST have exactly this structure:
-def parse_data(data):
-    ...
-9. The function must return the extracted data.
-10. Extract ALL requested fields:
-{required_fields}
-11. Handle missing fields safely.
-    Return None when a requested field does not exist.
-12. Do not make any HTTP request inside the function.
-13. Do not use requests inside the function.
-14. Do not use Selenium.
-15. Do not use Playwright.
-16. Do not create multiple functions.
-17. Do not create separate XPath/JSON-path variables
-    outside parse_data().
-18. All parsing logic must be inside parse_data(data).
-19. The function should accept the website response through
-    the `data` argument.
-20. The function should be directly usable in a Python scraper.
-21. Clean unnecessary whitespace from extracted values.
-22. Preserve the correct data type where appropriate.
-23. If multiple products/items/records exist, return a list
-    containing all records.
-24. If the response contains only one item, still return a
-    list containing that item.
-25. Do not explain the code.
-26. Do not return XPath separately.
-27. Do not return JSON paths separately.
-28. Do not include markdown code fences.
-29. Return ONLY the complete Python function.
-30. Do not hallucinate selectors, keys, fields, URLs,
-    attributes, or values that are not supported by the
-    supplied response.
-31. The generated parser must work against the complete
-    response supplied through `data`.
-32. Keep all imports required by the parser inside
-    parse_data(data), so the returned code is self-contained.
-33. If the response is HTML and lxml is appropriate,
-    parse the HTML using lxml inside parse_data().
-34. If the response is JSON, safely parse the JSON using
-    Python's json module inside parse_data().
-35. If data is already a Python dictionary/list, handle it
-    directly when appropriate.
-36. If the response format is ambiguous, inspect the actual
-    response structure before deciding the parsing method.
-37. Return a consistent list of dictionaries.
-38. Each dictionary should contain the requested field names
-    exactly as provided.
-39. Do not add unnecessary fields that were not requested.
-40. Do not modify, rename, or reinterpret the requested field
-    names.
-41. Do not truncate the response during analysis.
-42. Make the parser robust against missing HTML elements,
-    missing JSON keys, empty values, and unexpected null values.
-43. Do not assume that the first matching element is the
-    correct record if multiple records are present.
-44. When multiple records are present, preserve the relationship
-    between fields belonging to the same record.
-45. For prices, ratings, quantities, availability, IDs,
-    URLs, and other structured values, extract the actual value
-    from the response without inventing or modifying it.
-46. If a requested field is not present anywhere in the
-    supplied response, return None for that field.
-47. Do not generate sample, dummy, or hardcoded values.
-48. Do not hardcode values from the example response into
-    the parser.
-49. The parser must dynamically parse the supplied `data`.
-50. The final output must be executable Python code.
-Expected output:
-def parse_data(data):
-    ...
-    return result
-"""
+    You are a senior Python web scraping engineer specializing in
+    dynamic, reliable, production-quality HTML and JSON parsers.
+
+    Your task is to analyze the supplied website response and
+    optional reference screenshot, then generate ONE complete,
+    executable Python function named parse_data(data).
+
+    The parser must extract every requested field accurately,
+    handle multiple records dynamically, and avoid brittle selectors.
+
+    ============================================================
+    INPUT INFORMATION
+    ============================================================
+
+    Website Type:
+    {site_type}
+
+    Required Fields:
+    {required_fields}
+
+    Website Response:
+    {response_data}
+
+    A reference screenshot may also be attached to this request.
+    If attached, inspect the actual image carefully.
+
+    ============================================================
+    1. REFERENCE IMAGE ANALYSIS
+    ============================================================
+
+    If a screenshot is attached:
+
+    1. Visually inspect the entire screenshot.
+    2. Identify all requested fields visible in the screenshot.
+    3. Understand the relationship between labels and values.
+    4. Identify the relevant record or page section.
+    5. Use the screenshot to understand what the user expects
+    the parser to extract.
+    6. Compare the visible fields with the supplied HTML, JSON,
+    embedded JSON, or other response data.
+    7. Identify the actual HTML elements, attributes, links,
+    text nodes, JSON keys, and nested structures that contain
+    the corresponding values.
+    8. Prefer the actual underlying data over visible presentation
+    text when both contain the same information.
+    9. Never hardcode values taken from the screenshot.
+    10. If a requested value is visible in the screenshot but
+        unavailable in the supplied response, return None for
+        that field.
+    11. Do not assume that an image alone proves a value exists
+        in the response.
+    12. Do not invent selectors or data based on appearance alone.
+
+    The screenshot is a reference for identifying fields.
+    The supplied response is the source for extracted values.
+
+    ============================================================
+    2. INSPECT THE ACTUAL RESPONSE
+    ============================================================
+
+    Before generating the parser, reason carefully about the
+    actual structure of the supplied response.
+
+    The response may contain:
+
+    - HTML
+    - JSON
+    - JSON embedded in HTML script tags
+    - Structured state objects
+    - Multiple records
+    - Nested objects and arrays
+    - Links and attributes containing useful data
+    - Repeated HTML components
+    - Empty values or missing fields
+
+    Determine the correct parsing strategy from the actual data.
+
+    For HTML:
+    - Inspect the real DOM structure.
+    - Identify the correct record container.
+    - Inspect class names, IDs, attributes, labels and links.
+    - Use lxml.html or another suitable parser.
+    - Prefer stable selectors based on actual response content.
+    - Use relative XPath expressions inside the identified record
+    whenever appropriate.
+    - Do not invent HTML elements or attributes.
+
+    For JSON:
+    - Parse the actual JSON structure.
+    - Follow the real keys and nested objects.
+    - Iterate dynamically over relevant arrays.
+    - Do not invent keys or assume a structure that is absent.
+
+    For JSON embedded in HTML:
+    - Identify the actual script or data container.
+    - Extract and parse the embedded JSON correctly.
+    - Use the real structure present in the response.
+
+    ============================================================
+    3. STRICT DYNAMIC PARSING REQUIREMENTS
+    ============================================================
+
+    The generated parser MUST be dynamic.
+
+    1. Do not hardcode extracted names, prices, phone numbers,
+    locations, product IDs, URLs or other example values.
+
+    2. Do not write a parser specifically for one record's values.
+
+    3. Do not assume the requested record is always the first
+    matching HTML element or JSON array item.
+
+    4. Identify repeated record containers and iterate over them.
+
+    5. Extract each requested field from its corresponding record.
+
+    6. Do not combine values belonging to different records.
+
+    7. Do not use fixed XPath result indexing such as:
+        elements[0]
+        name_elements[0]
+        phone_elements[0]
+
+    Instead, use safe iteration, validated candidate selection,
+    or next(iter(candidates), None) where appropriate.
+
+    8. Do not use a fixed array index to select a record unless
+    the actual response structure explicitly requires that index.
+
+    9. Do not use positional selectors such as div[1] or
+    //div[3] when a stable class, ID, attribute or relationship
+    is available.
+
+    10. Do not rely on CSS class names that are not present in
+        the supplied response.
+
+    11. Do not assume every record contains every requested field.
+
+    12. A missing field in one record must not prevent extraction
+        of other fields or other records.
+
+    13. Do not return an empty string merely because the first
+        candidate is empty. Inspect other valid candidates within
+        the same record when appropriate.
+
+    14. Do not silently substitute an unrelated value for a
+        missing field.
+
+    15. Repeated executions with different response data of the
+        same structure must extract the corresponding new values.
+
+    ============================================================
+    4. PHONE NUMBER AND CONTACT FIELD EXTRACTION
+    ============================================================
+
+    Phone numbers and contact information require special care.
+
+    When a phone number is requested:
+
+    1. Search the actual relevant record for:
+    - Anchor elements with href attributes beginning with tel:
+    - Phone-related classes and IDs
+    - Elements containing phone labels
+    - Text nodes containing phone numbers
+    - Relevant structured JSON properties
+    - Other actual phone-related attributes in the response
+
+    2. If the screenshot shows a phone number, use its visible
+    label and location to identify the corresponding element
+    in the response.
+
+    3. Prefer a matching tel: link when it belongs to the correct
+    record and contains the actual number.
+
+    4. If the link text and tel: attribute differ, inspect both
+    and select the representation appropriate to the requested
+    field. Do not assume they are always identical.
+
+    5. If one candidate is empty, inspect other relevant candidates
+    in the same record.
+
+    6. Do not select the first phone-related element from the
+    entire page if it belongs to a different person or record.
+
+    7. Do not extract header contact information, unrelated office
+    numbers, footer numbers or navigation text as the record's
+    phone number.
+
+    8. Do not discard a valid number because it contains spaces,
+    parentheses, hyphens, a country code or other formatting.
+
+    9. Preserve the actual phone number unless normalization
+    is explicitly requested.
+
+    10. If no valid phone number exists in the supplied response,
+        return None. Never invent or copy the number from the
+        screenshot into the output.
+
+    Apply equivalent record-aware logic to other requested fields,
+    including names, roles, addresses, locations, prices, ratings,
+    IDs, URLs and availability.
+
+    ============================================================
+    5. SELECTOR VALIDATION AND FALLBACKS
+    ============================================================
+
+    For each requested field:
+
+    1. Identify the most reliable selector or data path using
+    evidence from the supplied response.
+
+    2. Consider more than one valid extraction strategy when
+    the response supports it.
+
+    3. If a candidate selector produces no useful value, inspect
+    other relevant structures within the same record.
+
+    4. Prefer semantic evidence such as:
+    - Stable attributes
+    - Relevant class names
+    - Labels
+    - Link destinations
+    - Relationships between elements
+    - Actual JSON keys
+    - Record-specific containers
+
+    5. Avoid broad selectors that accidentally capture unrelated
+    text elsewhere on the page.
+
+    6. Avoid taking an arbitrary element's text as a fallback.
+
+    7. Do not fabricate a fallback value.
+
+    8. Use None when no supported value can be found.
+
+    9. Keep fallback logic inside parse_data(data).
+
+    10. Preserve the relationship between every record and its
+        requested field values.
+
+    ============================================================
+    6. OUTPUT FUNCTION REQUIREMENTS
+    ============================================================
+
+    Generate exactly ONE top-level function:
+
+    def parse_data(data):
+        ...
+        return result
+
+    The function must:
+
+    - Accept the complete supplied response through data.
+    - Parse the supplied response without making HTTP requests.
+    - Work with a string containing HTML, JSON or text.
+    - Handle an already parsed dictionary or list when appropriate.
+    - Include every required import inside the function.
+    - Keep all parsing logic inside this function.
+    - Return a list of dictionaries consistently.
+    - Return a list containing one dictionary for a single record.
+    - Include every requested field name exactly as supplied.
+    - Return None for genuinely unavailable requested fields.
+    - Preserve valid extracted values and suitable data types.
+    - Strip unnecessary whitespace from text values.
+    - Handle missing elements, empty text, missing keys and nulls.
+    - Avoid crashing when an optional element is absent.
+    - Extract multiple records when they are present.
+    - Return an empty list if no relevant records are found.
+    - Avoid unnecessary fields that the user did not request.
+    - Never hardcode values from the supplied example.
+    - Never make network requests or read external files.
+    - Never use Selenium, Playwright or browser automation.
+    - Never create additional top-level functions.
+    - Never return XPath expressions separately.
+    - Never return JSON paths separately.
+
+    ============================================================
+    7. FINAL SELF-CHECK BEFORE RETURNING CODE
+    ============================================================
+
+    Before producing the final answer, internally verify:
+
+    1. Every requested field is accounted for.
+    2. The screenshot was considered if one was attached.
+    3. Each selector or data path is supported by the response.
+    4. Phone numbers and other contact details are searched
+    through relevant record-specific candidates.
+    5. The parser does not blindly select the first result.
+    6. Multiple records are handled dynamically.
+    7. Missing fields return None rather than causing errors.
+    8. No screenshot values are hardcoded.
+    9. No example record values are hardcoded.
+    10. The code is syntactically valid Python.
+    11. The code can run against the supplied response.
+    12. Each record's values come from the same record.
+    13. No requested field is silently omitted.
+    14. All imports are inside parse_data(data).
+
+    Do not claim that a field was successfully verified unless
+    the supplied response actually supports the extraction.
+
+    ============================================================
+    FINAL OUTPUT FORMAT
+    ============================================================
+
+    Return ONLY the complete Python code.
+
+    Do not include markdown code fences.
+    Do not include explanations, comments outside the function,
+    test results, or separate selector descriptions.
+
+    Expected structure:
+
+    def parse_data(data):
+        ...
+        return result
+    """
+
     # --------------------------------------------------------
     # Try Gemini Keys
     # --------------------------------------------------------
