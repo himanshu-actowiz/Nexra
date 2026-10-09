@@ -456,16 +456,13 @@ custom_field""",
 
     custom_fields = st.text_area(
         "Custom fields",
-        height=130,
-        placeholder="""Add custom fields, one per line...
-
-    Example:
-    store_id
-    membership_price
-    discount_percentage""",
+        height=160,
+        placeholder="Enter custom field names, one per line...\n\nExample:\nstore_id\nmembership_price\ndiscount_percentage",
         key=f"{key}_custom_fields",
         label_visibility="collapsed"
     )
+
+    st.caption("Add any extra fields that are not available in the predefined list.")
 
     # ============================================================
     # REFERENCE IMAGE UPLOAD
