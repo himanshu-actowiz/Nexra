@@ -1,7 +1,8 @@
 import os
 import re
 import threading
-from google import genai, types
+from google import genai
+from google.genai import types
 # ============================================================
 # GEMINI KEY POOL STATE
 # ============================================================

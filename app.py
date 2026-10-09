@@ -244,7 +244,13 @@ def required_fields_section(key, site_type):
         fields = st.text_area(
             "Fields to Extract",
             height=180,
-            placeholder="Enter fields, one per line...\\n\\nExample:\\ntitle\\nprice\\nimage_url\\ncustom_field",
+            placeholder="""Enter fields, one per line...
+
+Example:
+title
+price
+image_url
+custom_field""",
             key=f"{key}_other_fields",
         )
         render_reference_image()
@@ -293,7 +299,12 @@ def required_fields_section(key, site_type):
     custom_fields = st.text_area(
         "Custom fields",
         height=160,
-        placeholder="Enter custom field names, one per line...\\n\\nExample:\\nstore_id\\nmembership_price\\ndiscount_percentage",
+        placeholder="""Enter custom field names, one per line...
+
+Example:
+store_id
+membership_price
+discount_percentage""",
         key=f"{key}_custom_fields",
         label_visibility="collapsed",
     )
@@ -314,7 +325,7 @@ def required_fields_section(key, site_type):
     if final_fields:
         st.caption(f"✓ {len(final_fields)} field(s) selected")
 
-    return "\\n".join(final_fields)
+    return "\n".join(final_fields)
 
 
 # ============================================================
