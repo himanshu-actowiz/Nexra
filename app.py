@@ -1,44 +1,25 @@
-import streamlit as st
-import requests
+
+import base64
+import json
+import re
 import shlex
-import pandas as pd
-from pathlib import Path
+from io import BytesIO
+
+import requests
+from flask import Flask, jsonify, render_template, request
 from field_config import FIELD_OPTIONS
 from gemini_parser import generate_parser
-# ============================================================
-# PAGE CONFIGURATION
-# ============================================================
-st.set_page_config(
-    page_title="Nexra",
-    page_icon="🕷️",
-    layout="wide",
-    initial_sidebar_state="expanded"
+
+
+app = Flask(
+    __name__,
+    static_folder="public",
+    static_url_path="",
+    template_folder="templates",
 )
-# ============================================================
-# LOAD EXTERNAL CSS
-# ============================================================
-def load_css():
-    css_path = Path(__file__).parent / "style.css"
-    if not css_path.exists():
-        st.warning(
-            "style.css was not found. "
-            "The application will continue without custom styling."
-        )
-        return
-    with open(
-        css_path,
-        "r",
-        encoding="utf-8"
-    ) as file:
-        css = file.read()
-    st.markdown(
-        f"<style>{css}</style>",
-        unsafe_allow_html=True
-    )
-load_css()
-# ============================================================
-# CONSTANTS
-# ============================================================
+
+app.config["MAX_CONTENT_LENGTH"] = 6 * 1024 * 1024
+
 WEBSITE_TYPES = [
     "Ecommerce",
     "Airline",
@@ -47,870 +28,291 @@ WEBSITE_TYPES = [
     "Grocery",
     "Bus",
     "Train",
-    "Other"
+    "Other",
 ]
-# ============================================================
-# PARSE CURL
-# ============================================================
-def parse_curl(curl):
-    # Handle multiline cURL
-    curl = curl.replace("\\\\\n", " ")
-    # Split cURL safely
-    parts = shlex.split(curl)
+
+
+def parse_curl(curl_text):
+    """Parse common cURL options into requests-compatible data."""
+    curl_text = curl_text.replace("\\\r\n", " ")
+    curl_text = curl_text.replace("\\\n", " ")
+    parts = shlex.split(curl_text)
+
     url = None
     method = "GET"
     headers = {}
-    data = None
+    body = None
+    cookies = None
+
     i = 0
     while i < len(parts):
         part = parts[i]
-        # ----------------------------------------------------
-        # URL
-        # ----------------------------------------------------
-        if part in [
-            "--url",
-            "-url"
-        ]:
+
+        if part in ("curl",):
+            i += 1
+            continue
+
+        if part in ("--url",):
             i += 1
             if i < len(parts):
                 url = parts[i]
-        elif (
-            part.startswith("http://")
-            or part.startswith("https://")
-        ):
-            if url is None:
-                url = part
-        # ----------------------------------------------------
-        # HEADERS
-        # ----------------------------------------------------
-        elif part in [
-            "-H",
-            "--header"
-        ]:
+
+        elif part in ("-H", "--header"):
             i += 1
             if i < len(parts):
                 header = parts[i]
                 if ":" in header:
-                    key, value = header.split(
-                        ":",
-                        1
-                    )
-                    headers[
-                        key.strip()
-                    ] = value.strip()
-        # ----------------------------------------------------
-        # HTTP METHOD
-        # ----------------------------------------------------
-        elif part in [
-            "-X",
-            "--request"
-        ]:
+                    name, value = header.split(":", 1)
+                    headers[name.strip()] = value.strip()
+
+        elif part in ("-X", "--request"):
             i += 1
             if i < len(parts):
                 method = parts[i].upper()
-        # ----------------------------------------------------
-        # REQUEST BODY
-        # ----------------------------------------------------
-        elif part in [
-            "-d",
-            "--data",
-            "--data-raw",
-            "--data-binary"
-        ]:
+
+        elif part in (
+            "-d", "--data", "--data-raw", "--data-binary",
+            "--data-ascii", "--data-urlencode",
+        ):
             i += 1
             if i < len(parts):
-                data = parts[i]
-                # If body exists and method wasn't specified,
-                # cURL normally uses POST.
+                body = parts[i]
                 if method == "GET":
                     method = "POST"
+
+        elif part in ("-b", "--cookie"):
+            i += 1
+            if i < len(parts):
+                cookies = parts[i]
+
+        elif part.startswith("http://") or part.startswith("https://"):
+            if not url:
+                url = part
+
         i += 1
+
+    if cookies:
+        headers.setdefault("Cookie", cookies)
+
+    if not url:
+        raise ValueError("URL could not be found in the cURL command.")
+
     return {
         "url": url,
         "method": method,
         "headers": headers,
-        "data": data
+        "data": body,
     }
-# ============================================================
-# EXECUTE REQUEST
-# ============================================================
-def execute_request(request_data):
-    url = request_data["url"]
-    method = request_data["method"]
-    headers = request_data["headers"]
-    data = request_data["data"]
-    if not url:
-        raise ValueError(
-            "URL not found in cURL."
-        )
+
+
+def execute_curl_request(curl_text):
+    request_data = parse_curl(curl_text)
+
     response = requests.request(
-        method=method,
-        url=url,
-        headers=headers,
-        data=data,
-        timeout=30
+        method=request_data["method"],
+        url=request_data["url"],
+        headers=request_data["headers"],
+        data=request_data["data"],
+        timeout=45,
+        allow_redirects=True,
     )
-    return response
-# ============================================================
-# CLEAN GEMINI GENERATED CODE
-# ============================================================
-def clean_generated_code(parser_code):
-    if not parser_code:
-        return ""
-    clean_code = parser_code.strip()
-    # Remove Python code fence
-    if clean_code.startswith("```python"):
-        clean_code = clean_code[
-            len("```python"):
-        ].strip()
-    # Remove generic code fence
-    elif clean_code.startswith("```"):
-        clean_code = clean_code[
-            len("```"):
-        ].strip()
-    # Remove ending code fence
-    if clean_code.endswith("```"):
-        clean_code = clean_code[
-            :-3
-        ].strip()
-    return clean_code
-# ============================================================
-# EXECUTE GENERATED PARSER
-# ============================================================
-def execute_generated_parser(
-    parser_code,
-    response_data
-):
-    clean_code = clean_generated_code(
-        parser_code
-    )
-    if not clean_code:
-        raise ValueError(
-            "Gemini returned empty parser code."
-        )
-    namespace = {}
-    # Execute generated code
-    exec(
-        clean_code,
-        namespace
-    )
-    # Get parse_data function
-    parse_data = namespace.get(
-        "parse_data"
-    )
-    if not parse_data:
-        raise ValueError(
-            "parse_data() function was not found "
-            "in generated code."
-        )
-    # Execute parser
-    extracted_data = parse_data(
-        response_data
-    )
-    return extracted_data
-# ============================================================
-# WEBSITE TYPE SECTION
-# ============================================================
-def website_type_section(key):
-    return st.selectbox(
-        "Website Type",
-        WEBSITE_TYPES,
-        key=key
-    )
-# ============================================================
-# REQUIRED FIELDS SECTION
-# ============================================================
-def required_fields_section(key, site_type):
-    """Render category fields, custom fields, and optional reference image."""
 
-    def render_reference_image():
-        st.markdown("#### Reference Image (Optional)")
-        uploaded_image = st.file_uploader(
-            "Upload screenshot or reference image",
-            type=["png", "jpg", "jpeg", "webp"],
-            accept_multiple_files=False,
-            key=f"{key}_reference_image",
-            help="Upload a screenshot showing the fields you want to extract.",
-        )
-        if uploaded_image is not None:
-            st.image(
-                uploaded_image,
-                caption="Reference Screenshot",
-                use_container_width=True,
-            )
-        return uploaded_image
+    response.raise_for_status()
 
-    if site_type == "Other":
-        fields = st.text_area(
-            "Fields to Extract",
-            height=180,
-            placeholder="""Enter fields, one per line...
-
-Example:
-title
-price
-image_url
-custom_field""",
-            key=f"{key}_other_fields",
-        )
-        render_reference_image()
-        return fields
-
-    available_fields = FIELD_OPTIONS.get(site_type, [])
-    checkbox_keys = {
-        field: f"{key}_field_{field}"
-        for field in available_fields
+    return response.text, {
+        "url": response.url,
+        "status_code": response.status_code,
+        "method": request_data["method"],
     }
 
-    def select_all():
-        for field in available_fields:
-            st.session_state[checkbox_keys[field]] = True
 
-    def clear_all():
-        for field in available_fields:
-            st.session_state[checkbox_keys[field]] = False
+def clean_generated_code(code):
+    if not code:
+        return ""
 
-    st.markdown("### Select Fields")
-    button_col1, button_col2, _ = st.columns([1.2, 1.2, 6])
+    code = code.strip()
 
-    with button_col1:
-        st.button(
-            "✓ Select All",
-            key=f"{key}_select_all",
-            on_click=select_all,
-        )
+    if code.startswith("```python"):
+        code = code[len("```python"):].strip()
+    elif code.startswith("```"):
+        code = code[len("```"):].strip()
 
-    with button_col2:
-        st.button(
-            "✕ Clear All",
-            key=f"{key}_clear_all",
-            on_click=clear_all,
-        )
+    if code.endswith("```"):
+        code = code[:-3].strip()
 
-    selected_fields = []
-    columns = st.columns(3, gap="large")
-
-    for index, field in enumerate(available_fields):
-        with columns[index % 3]:
-            if st.checkbox(field, key=checkbox_keys[field]):
-                selected_fields.append(field)
-
-    st.markdown("### Other Fields")
-    custom_fields = st.text_area(
-        "Custom fields",
-        height=160,
-        placeholder="""Enter custom field names, one per line...
-
-Example:
-store_id
-membership_price
-discount_percentage""",
-        key=f"{key}_custom_fields",
-        label_visibility="collapsed",
-    )
-    st.caption("Add any extra fields that are not available in the predefined list.")
-
-    render_reference_image()
-
-    final_fields = []
-    for field in selected_fields:
-        if field not in final_fields:
-            final_fields.append(field)
-
-    for field in custom_fields.splitlines():
-        field = field.strip()
-        if field and field not in final_fields:
-            final_fields.append(field)
-
-    if final_fields:
-        st.caption(f"✓ {len(final_fields)} field(s) selected")
-
-    return "\n".join(final_fields)
+    return code
 
 
-# ============================================================
-# GENERATE + EXECUTE PARSER
-# ============================================================
-def generate_and_execute(
-    response_data,
-    site_type,
-    fields,
-    reference_image=None,
-    image_mime_type=None,
-):
-    # --------------------------------------------------------
-    # RESPONSE VALIDATION
-    # --------------------------------------------------------
-    if not response_data:
-        st.warning(
-            "Please provide response data."
-        )
-        return
-    if not response_data.strip():
-        st.warning(
-            "Please provide response data."
-        )
-        return
-    # --------------------------------------------------------
-    # REQUIRED FIELDS VALIDATION
-    # --------------------------------------------------------
-    if not fields.strip():
-        st.warning(
-            "Please enter at least one required field."
-        )
-        return
-    # --------------------------------------------------------
-    # GEMINI PARSER GENERATION
-    # --------------------------------------------------------
-    with st.spinner(
-        "Gemini is analyzing the response "
-        "and generating parse_data()..."
-    ):
-        try:
-            parser_code = generate_parser(
-                response_data,
-                site_type,
-                fields,
-                reference_image=reference_image,
-                image_mime_type=image_mime_type,
-            )
-        except Exception as e:
-            st.error(
-                f"Gemini parser generation failed: {e}"
-            )
-            return
-    # --------------------------------------------------------
-    # CLEAN GENERATED CODE
-    # --------------------------------------------------------
-    parser_code = clean_generated_code(
-        parser_code
-    )
+def execute_generated_parser(parser_code, response_data):
+    """
+    Run the generated parse_data(data) function.
+
+    Note: generated Python code is executable code, so only use this
+    feature with trusted Gemini-generated output.
+    """
+    parser_code = clean_generated_code(parser_code)
+
     if not parser_code:
-        st.error(
-            "Gemini returned empty parser code."
-        )
-        return
-    st.success(
-        "parse_data() generated successfully."
-    )
-    # --------------------------------------------------------
-    # CODE + EXTRACTED VALUES
-    # --------------------------------------------------------
-    col1, col2 = st.columns(
-        2,
-        gap="large"
-    )
-    # ========================================================
-    # LEFT PANEL - GENERATED CODE
-    # ========================================================
-    with col1:
-        st.markdown(
-            '<div class="output-title">'
-            '🐍 Generated Parser Code'
-            '</div>',
-            unsafe_allow_html=True
-        )
-        st.code(
-            parser_code,
-            language="python"
-        )
-    # ========================================================
-    # RIGHT PANEL - EXTRACTED VALUES
-    # ========================================================
-    with col2:
-        st.markdown(
-            '<div class="output-title">'
-            '📊 Extracted Values'
-            '</div>',
-            unsafe_allow_html=True
-        )
-        with st.spinner(
-            "Running generated parser..."
-        ):
-            try:
-                extracted_data = execute_generated_parser(
-                    parser_code,
-                    response_data
-                )
-                if extracted_data:
-                    if isinstance(
-                        extracted_data,
-                        list
-                    ):
-                        st.success(
-                            f"Extracted "
-                            f"{len(extracted_data)} record(s)."
-                        )
-                    else:
-                        st.success(
-                            "Data extracted successfully."
-                        )
-                    st.json(
-                        extracted_data
-                    )
-                else:
-                    st.warning(
-                        "Parser executed successfully, "
-                        "but returned no data."
-                    )
-            except Exception as e:
-                st.error(
-                    "Could not execute generated parser."
-                )
-                st.code(
-                    str(e),
-                    language="text"
-                )
-# ============================================================
-# PAGE HEADER
-# ============================================================
-st.markdown(
-    '<div class="main-title">'
-    '🕷️ Nexra'
-    '</div>',
-    unsafe_allow_html=True
-)
-st.markdown(
-    '<div class="main-description">'
-    'Generate a complete Python parse_data() function '
-    'from a cURL request or directly from a website response.'
-    '</div>',
-    unsafe_allow_html=True
-)
-# ============================================================
-# TOP NAVIGATION
-# ============================================================
-curl_tab, response_tab = st.tabs(
-    [
-        "🔗  CURL TO PARSE",
-        "📦  RESPONSE TO PARSE"
-    ]
-)
-# ################################################################
-# CURL TO PARSE
-# ################################################################
-with curl_tab:
-    st.markdown(
-        """
-        <div class="section-header">
-            <div class="section-icon">🔗</div>
-            <div class="section-title">CURL to Parse</div>
-        </div>
-        <div class="section-description">
-            Provide a complete cURL request. The request will be
-            executed, analyzed, and converted into a Python parser.
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-    # ============================================================
-    # CURL INPUT
-    # ============================================================
-    st.subheader(
-        "1. cURL Request"
-    )
-    curl = st.text_area(
-        "Paste cURL",
-        height=280,
-        placeholder="""Paste your complete cURL here...
-Example:
-curl --url 'https://example.com/product' \\\\
--H 'accept: text/html' \\\\
--H 'user-agent: Mozilla/5.0'""",
-        key="curl_input"
-    )
-    # ============================================================
-    # WEBSITE TYPE
-    # ============================================================
-    st.subheader(
-        "2. Website Type"
-    )
-    curl_site_type = website_type_section(
-        "curl_website_type"
-    )
-    # ============================================================
-    # REQUIRED FIELDS
-    # ============================================================
-    st.subheader(
-        "3. Fields to Extract"
-    )
-    curl_fields = required_fields_section(
-        "curl_required_fields",
-        curl_site_type
-    )
-    # ============================================================
-    # GENERATE PARSER
-    # ============================================================
-    if st.button(
-        "🚀  Generate Parser from cURL",
-        type="primary",
-        use_container_width=True,
-        key="curl_generate"
-    ):
-        # --------------------------------------------------------
-        # CURL VALIDATION
-        # --------------------------------------------------------
-        if not curl.strip():
-            st.warning(
-                "Please paste a cURL request."
-            )
-            st.stop()
-        if not curl_fields.strip():
-            st.warning(
-                "Please enter at least one required field."
-            )
-            st.stop()
-        # --------------------------------------------------------
-        # PARSE CURL
-        # --------------------------------------------------------
-        with st.spinner(
-            "Parsing cURL..."
-        ):
-            try:
-                request_data = parse_curl(
-                    curl
-                )
-            except Exception as e:
-                st.error(
-                    f"Failed to parse cURL: {e}"
-                )
-                st.stop()
-        # --------------------------------------------------------
-        # URL VALIDATION
-        # --------------------------------------------------------
-        if not request_data["url"]:
-            st.error(
-                "URL could not be found in the cURL."
-            )
-            st.stop()
-        # --------------------------------------------------------
-        # PARSED REQUEST
-        # --------------------------------------------------------
-        st.divider()
-        st.subheader(
-            "🔎 Parsed Request"
-        )
-        col1, col2 = st.columns(2)
-        with col1:
-            st.caption(
-                "HTTP Method"
-            )
-            st.code(
-                request_data["method"]
-            )
-        with col2:
-            st.caption(
-                "Request URL"
-            )
-            st.code(
-                request_data["url"]
-            )
-        # --------------------------------------------------------
-        # HEADERS
-        # --------------------------------------------------------
-        with st.expander(
-            "📋 Request Headers"
-        ):
-            if request_data["headers"]:
-                st.json(
-                    request_data["headers"]
-                )
-            else:
-                st.info(
-                    "No request headers found."
-                )
-        # --------------------------------------------------------
-        # REQUEST BODY
-        # --------------------------------------------------------
-        if request_data["data"]:
-            with st.expander(
-                "📦 Request Body"
-            ):
-                st.code(
-                    request_data["data"],
-                    language="json"
-                )
-        # --------------------------------------------------------
-        # EXECUTE REQUEST
-        # --------------------------------------------------------
-        st.divider()
-        st.subheader(
-            "🌐 Website Response"
-        )
-        with st.spinner(
-            "Sending request..."
-        ):
-            try:
-                response = execute_request(
-                    request_data
-                )
-            except requests.RequestException as e:
-                st.error(
-                    f"Request failed: {e}"
-                )
-                st.stop()
-            except Exception as e:
-                st.error(
-                    f"Unexpected error: {e}"
-                )
-                st.stop()
-        # --------------------------------------------------------
-        # RESPONSE STATUS
-        # --------------------------------------------------------
-        if response.ok:
-            st.success(
-                f"Response received successfully — "
-                f"Status Code: {response.status_code}"
-            )
+        raise ValueError("The generated parser code is empty.")
+
+    namespace = {}
+    exec(parser_code, namespace)
+
+    parse_data = namespace.get("parse_data")
+    if not callable(parse_data):
+        raise ValueError("Generated code does not contain parse_data(data).")
+
+    result = parse_data(response_data)
+
+    # Ensure the output can be returned as JSON.
+    json.dumps(result, ensure_ascii=False, default=str)
+    return result
+
+
+@app.get("/")
+def home():
+    return render_template("index.html")
+
+
+@app.get("/api/fields")
+def get_fields():
+    return jsonify({
+        "website_types": WEBSITE_TYPES,
+        "fields": FIELD_OPTIONS,
+    })
+
+
+@app.post("/api/generate")
+def generate():
+    try:
+        payload = request.get_json(silent=True) or {}
+
+        mode = str(payload.get("mode", "response")).strip().lower()
+        category = str(payload.get("category", "Other")).strip()
+        input_text = str(payload.get("input", "")).strip()
+        response_type = str(payload.get("response_type", "json")).lower()
+
+        selected_fields = payload.get("fields", [])
+        custom_fields = payload.get("custom_fields", [])
+
+        if category not in WEBSITE_TYPES:
+            return jsonify({"error": "Invalid website category."}), 400
+
+        if mode not in ("curl", "response"):
+            return jsonify({"error": "Invalid parser mode."}), 400
+
+        if not input_text:
+            return jsonify({"error": "Please provide cURL or response data."}), 400
+
+        if not isinstance(selected_fields, list):
+            return jsonify({"error": "Fields must be provided as a list."}), 400
+
+        if not isinstance(custom_fields, list):
+            return jsonify({"error": "Custom fields must be provided as a list."}), 400
+
+        fields = []
+        for item in selected_fields + custom_fields:
+            field = str(item).strip()
+            if field and field not in fields:
+                fields.append(field)
+
+        if not fields:
+            return jsonify({"error": "Select at least one field to extract."}), 400
+
+        request_info = None
+
+        if mode == "curl":
+            response_data, request_info = execute_curl_request(input_text)
         else:
-            st.warning(
-                f"Response received — "
-                f"Status Code: {response.status_code}"
-            )
-        # --------------------------------------------------------
-        # RESPONSE INFORMATION
-        # --------------------------------------------------------
-        response_size = len(
-            response.text
-        )
-        content_type = response.headers.get(
-            "Content-Type",
-            "Unknown"
-        )
-        info_col1, info_col2 = st.columns(2)
-        with info_col1:
-            st.metric(
-                "Response Size",
-                f"{response_size:,} chars"
-            )
-        with info_col2:
-            st.metric(
-                "Status Code",
-                response.status_code
-            )
-        st.caption(
-            f"Content-Type: {content_type}"
-        )
-        # --------------------------------------------------------
-        # RESPONSE PREVIEW
-        # --------------------------------------------------------
-        with st.expander(
-            "📄 View Response Preview"
-        ):
-            st.code(
-                response.text[:10000],
-                language="html"
-            )
-            if response_size > 10000:
-                st.caption(
-                    "Preview shows the first 10,000 characters. "
-                    "The complete response is used for parsing."
-                )
-        # --------------------------------------------------------
-        # AI PARSER
-        # --------------------------------------------------------
-        st.divider()
-        st.subheader(
-            "🤖 AI Generated Parser"
-        )
-        curl_image = st.session_state.get(
-            "curl_required_fields_reference_image"
-        )
-        generate_and_execute(
-            response.text,
-            curl_site_type,
-            curl_fields,
-            reference_image=curl_image.getvalue() if curl_image else None,
-            image_mime_type=curl_image.type if curl_image else None,
-        )
-# ################################################################
-# RESPONSE TO PARSE
-# ################################################################
-with response_tab:
-    st.markdown(
-        """
-        <div class="section-header">
-            <div class="section-icon">📦</div>
-            <div class="section-title">Response to Parse</div>
-        </div>
-        <div class="section-description">
-            Provide HTML, JSON, text, or Excel response data.
-            No HTTP request will be made in this mode.
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-    # ============================================================
-    # RESPONSE TYPE
-    # ============================================================
-    st.subheader(
-        "1. Response Type"
-    )
-    response_type = st.selectbox(
-        "Select Response Type",
-        [
-            "HTML",
-            "JSON",
-            "Text",
-            "Excel"
-        ],
-        key="response_type"
-    )
-    response_data = None
-    # ============================================================
-    # HTML / JSON / TEXT
-    # ============================================================
-    if response_type in [
-        "HTML",
-        "JSON",
-        "Text"
-    ]:
-        response_data = st.text_area(
-            "Complete Response",
-            height=450,
-            placeholder=(
-                "Paste the complete HTML / JSON / text response here..."
-            ),
-            key="direct_response"
-        )
-        if response_data:
-            st.caption(
-                f"{len(response_data):,} characters provided"
-            )
-    # ============================================================
-    # EXCEL
-    # ============================================================
-    elif response_type == "Excel":
-        uploaded_file = st.file_uploader(
-            "Upload Excel File",
-            type=[
-                "xlsx",
-                "xls"
-            ],
-            key="excel_upload"
-        )
-        if uploaded_file:
+            response_data = input_text
+
+            if response_type == "json":
+                try:
+                    json.loads(response_data)
+                except json.JSONDecodeError as exc:
+                    return jsonify({
+                        "error": f"Input is not valid JSON: {exc.msg} (line {exc.lineno})."
+                    }), 400
+            elif response_type != "html":
+                return jsonify({"error": "Response type must be JSON or HTML."}), 400
+
+        image_data = None
+        image_mime_type = None
+        image_data_url = payload.get("reference_image")
+
+        if image_data_url:
+            if not isinstance(image_data_url, str) or "," not in image_data_url:
+                return jsonify({"error": "Invalid reference image data."}), 400
+
+            header, encoded = image_data_url.split(",", 1)
+            match = re.match(r"data:(image/(?:png|jpeg|webp));base64$", header)
+
+            if not match:
+                return jsonify({"error": "Reference image must be PNG, JPG or WebP."}), 400
+
+            image_mime_type = match.group(1)
+
             try:
-                df = pd.read_excel(
-                    uploaded_file
-                )
-                st.success(
-                    f"Excel loaded successfully — "
-                    f"{len(df):,} rows × "
-                    f"{len(df.columns):,} columns"
-                )
-                with st.expander(
-                    "👀 Preview Excel Data",
-                    expanded=True
-                ):
-                    st.dataframe(
-                        df,
-                        use_container_width=True
-                    )
-                # Convert Excel rows to JSON
-                response_data = df.to_json(
-                    orient="records",
-                    force_ascii=False
-                )
-            except Exception as e:
-                st.error(
-                    f"Excel reading failed: {e}"
-                )
-    # ============================================================
-    # WEBSITE TYPE
-    # ============================================================
-    st.subheader(
-        "2. Website Type"
+                image_data = base64.b64decode(encoded, validate=True)
+            except Exception:
+                return jsonify({"error": "Could not decode the reference image."}), 400
+
+            if len(image_data) > 5 * 1024 * 1024:
+                return jsonify({"error": "Reference image must be 5 MB or smaller."}), 400
+
+        required_fields = "\n".join(fields)
+
+        parser_code = generate_parser(
+            response_data=response_data,
+            site_type=category,
+            required_fields=required_fields,
+            reference_image=image_data,
+            image_mime_type=image_mime_type,
+        )
+
+        parser_code = clean_generated_code(parser_code)
+
+        try:
+            extracted_data = execute_generated_parser(parser_code, response_data)
+            execution_error = None
+        except Exception as exc:
+            extracted_data = []
+            execution_error = str(exc)
+
+        result = {
+            "success": True,
+            "parser_code": parser_code,
+            "extracted_data": extracted_data,
+            "record_count": len(extracted_data) if isinstance(extracted_data, list) else 1,
+            "execution_error": execution_error,
+            "request_info": request_info,
+        }
+
+        return jsonify(result)
+
+    except requests.RequestException as exc:
+        return jsonify({
+            "error": f"Could not fetch the cURL URL: {str(exc)}"
+        }), 502
+
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+
+    except Exception as exc:
+        app.logger.exception("Parser generation failed")
+        return jsonify({
+            "error": f"Parser generation failed: {str(exc)}"
+        }), 500
+
+
+@app.errorhandler(413)
+def file_too_large(_error):
+    return jsonify({"error": "Request too large. Reference images must be 5 MB or smaller."}), 413
+
+
+if __name__ == "__main__":
+    app.run(
+        host="0.0.0.0",
+        port= int(__import__("os").environ.get("PORT", "5000")),
+        debug=False,
     )
-    response_site_type = website_type_section(
-        "response_website_type"
-    )
-    # ============================================================
-    # REQUIRED FIELDS
-    # ============================================================
-    st.subheader(
-        "3. Fields to Extract"
-    )
-    response_fields = required_fields_section(
-        "response_required_fields",
-        response_site_type
-    )
-    # ============================================================
-    # GENERATE PARSER
-    # ============================================================
-    if st.button(
-        "🚀  Generate Parser from Response",
-        type="primary",
-        use_container_width=True,
-        key="response_generate"
-    ):
-        # --------------------------------------------------------
-        # RESPONSE VALIDATION
-        # --------------------------------------------------------
-        if not response_data:
-            st.warning(
-                "Please provide response data."
-            )
-            st.stop()
-        if not response_data.strip():
-            st.warning(
-                "Please provide response data."
-            )
-            st.stop()
-        if not response_fields.strip():
-            st.warning(
-                "Please enter at least one required field."
-            )
-            st.stop()
-        # --------------------------------------------------------
-        # RESPONSE INFORMATION
-        # --------------------------------------------------------
-        st.divider()
-        st.subheader(
-            "📄 Response Information"
-        )
-        response_size = len(
-            response_data
-        )
-        st.metric(
-            "Response Size",
-            f"{response_size:,} characters"
-        )
-        # --------------------------------------------------------
-        # RESPONSE PREVIEW
-        # --------------------------------------------------------
-        with st.expander(
-            "👀 View Response Preview"
-        ):
-            if response_type == "JSON":
-                preview_language = "json"
-            elif response_type == "Text":
-                preview_language = "text"
-            else:
-                preview_language = "html"
-            st.code(
-                response_data[:10000],
-                language=preview_language
-            )
-            if response_size > 10000:
-                st.caption(
-                    "Preview shows the first 10,000 characters. "
-                    "The complete response is used for parsing."
-                )
-        # --------------------------------------------------------
-        # AI PARSER
-        # --------------------------------------------------------
-        st.divider()
-        st.subheader(
-            "🤖 AI Generated Parser"
-        )
-        response_image = st.session_state.get(
-            "response_required_fields_reference_image"
-        )
-        generate_and_execute(
-            response_data,
-            response_site_type,
-            response_fields,
-            reference_image=response_image.getvalue() if response_image else None,
-            image_mime_type=response_image.type if response_image else None,
-        )
