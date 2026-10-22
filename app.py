@@ -1,6 +1,7 @@
 
 import os
 import base64
+import binascii
 import json
 import re
 import shlex
@@ -19,7 +20,7 @@ from gemini_parser import generate_parser
 
 
 # =========================================================
-# FLASK APPLICATION
+# FLASK CONFIGURATION
 # =========================================================
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -48,7 +49,7 @@ WEBSITE_TYPES = [
 
 
 # =========================================================
-# STATIC FILES
+# HOME AND STATIC FILES
 # =========================================================
 
 @app.get("/")
@@ -58,17 +59,16 @@ def home():
 
 @app.get("/script.js")
 def serve_script():
-    file_path = os.path.join(PUBLIC_DIR, "script.js")
+    path = os.path.join(PUBLIC_DIR, "script.js")
 
-    if not os.path.isfile(file_path):
-        app.logger.error("Missing JavaScript file: %s", file_path)
+    if not os.path.isfile(path):
+        app.logger.error("Missing JavaScript: %s", path)
         return "script.js not found in public folder", 404
 
     response = send_from_directory(
         PUBLIC_DIR,
         "script.js",
         mimetype="application/javascript",
-        conditional=True,
     )
     response.headers["Cache-Control"] = "no-cache"
     return response
@@ -76,17 +76,16 @@ def serve_script():
 
 @app.get("/style.css")
 def serve_styles():
-    file_path = os.path.join(PUBLIC_DIR, "style.css")
+    path = os.path.join(PUBLIC_DIR, "style.css")
 
-    if not os.path.isfile(file_path):
-        app.logger.error("Missing CSS file: %s", file_path)
+    if not os.path.isfile(path):
+        app.logger.error("Missing CSS: %s", path)
         return "style.css not found in public folder", 404
 
     response = send_from_directory(
         PUBLIC_DIR,
         "style.css",
         mimetype="text/css",
-        conditional=True,
     )
     response.headers["Cache-Control"] = "no-cache"
     return response
@@ -109,15 +108,17 @@ def get_fields():
 # =========================================================
 
 def parse_curl(curl_text):
-    """Parse common cURL options into requests-compatible data."""
+    """Parse a common browser cURL command."""
 
-    curl_text = curl_text.replace("\\\r\n", " ")
-    curl_text = curl_text.replace("\\\n", " ")
+    curl_text = curl_text.strip()
+    curl_text = re.sub(r"\\\r?\n", " ", curl_text)
 
     try:
         parts = shlex.split(curl_text, posix=True)
     except ValueError as exc:
-        raise ValueError(f"Could not parse cURL command: {exc}") from exc
+        raise ValueError(
+            f"Could not parse cURL command: {exc}"
+        ) from exc
 
     url = None
     method = None
@@ -141,7 +142,6 @@ def parse_curl(curl_text):
 
         elif part in ("-H", "--header"):
             i += 1
-
             if i < len(parts):
                 header = parts[i]
 
@@ -151,7 +151,6 @@ def parse_curl(curl_text):
 
         elif part in ("-X", "--request"):
             i += 1
-
             if i < len(parts):
                 method = parts[i].upper()
 
@@ -164,36 +163,45 @@ def parse_curl(curl_text):
             "--data-urlencode",
         ):
             i += 1
-
             if i < len(parts):
                 body_parts.append(parts[i])
 
         elif part in ("-b", "--cookie"):
             i += 1
-
             if i < len(parts):
                 cookies = parts[i]
 
         elif part in ("-u", "--user"):
             i += 1
-
             if i < len(parts):
-                headers["Authorization"] = (
-                    "Basic "
-                    + base64.b64encode(
-                        parts[i].encode("utf-8")
-                    ).decode("ascii")
-                )
+                credentials = base64.b64encode(
+                    parts[i].encode("utf-8")
+                ).decode("ascii")
+
+                headers["Authorization"] = f"Basic {credentials}"
+
+        elif part in ("-A", "--user-agent"):
+            i += 1
+            if i < len(parts):
+                headers["User-Agent"] = parts[i]
+
+        elif part in ("-e", "--referer"):
+            i += 1
+            if i < len(parts):
+                headers["Referer"] = parts[i]
 
         elif part.startswith("http://") or part.startswith("https://"):
             if not url:
                 url = part
 
+        elif part in ("-I", "--head"):
+            method = "HEAD"
+
         i += 1
 
     if not url:
         raise ValueError(
-            "URL could not be found in the cURL command."
+            "URL not found. Paste the complete cURL command, including its URL."
         )
 
     if cookies:
@@ -213,6 +221,8 @@ def parse_curl(curl_text):
 
 
 def execute_curl_request(curl_text):
+    """Execute the supplied cURL request and return its response."""
+
     request_data = parse_curl(curl_text)
 
     response = requests.request(
@@ -243,49 +253,89 @@ def clean_generated_code(code):
 
     code = str(code).strip()
 
-    if code.startswith("```python"):
-        code = code[len("```python"):].strip()
+    code = re.sub(
+        r"^```(?:python)?\s*",
+        "",
+        code,
+        flags=re.IGNORECASE,
+    )
 
-    elif code.startswith("```"):
-        code = code[len("```"):].strip()
+    code = re.sub(r"\s*```$", "", code)
 
-    if code.endswith("```"):
-        code = code[:-3].strip()
-
-    return code
+    return code.strip()
 
 
 def execute_generated_parser(parser_code, response_data):
     """
-    Execute a generated parse_data(data) function.
+    Execute the generated parse_data(data) function.
 
     WARNING:
-    exec() runs Python code. Use only trusted generated code.
-    For production use, run generated parsers in an isolated sandbox.
+    exec() executes Python code. For production, execute generated
+    parsers in an isolated sandbox with strict resource limits.
     """
 
     parser_code = clean_generated_code(parser_code)
 
     if not parser_code:
-        raise ValueError("The generated parser code is empty.")
+        raise ValueError("Generated parser code is empty.")
 
     namespace = {}
-
     exec(parser_code, namespace)
 
     parse_data = namespace.get("parse_data")
 
     if not callable(parse_data):
         raise ValueError(
-            "Generated code does not contain parse_data(data)."
+            "Generated code must contain parse_data(data)."
         )
 
     result = parse_data(response_data)
 
-    # Verify that the result can be serialized.
+    # Confirm the result can be returned as JSON.
     json.dumps(result, ensure_ascii=False, default=str)
 
     return result
+
+
+# =========================================================
+# REFERENCE IMAGE
+# =========================================================
+
+def decode_reference_image(image_data_url):
+    if not image_data_url:
+        return None, None
+
+    if not isinstance(image_data_url, str) or "," not in image_data_url:
+        raise ValueError("Invalid reference image data.")
+
+    header, encoded = image_data_url.split(",", 1)
+
+    match = re.fullmatch(
+        r"data:(image/(?:png|jpeg|webp));base64",
+        header,
+    )
+
+    if not match:
+        raise ValueError(
+            "Reference image must be PNG, JPG or WebP."
+        )
+
+    try:
+        image_data = base64.b64decode(
+            encoded,
+            validate=True,
+        )
+    except (ValueError, binascii.Error) as exc:
+        raise ValueError(
+            "Could not decode the reference image."
+        ) from exc
+
+    if len(image_data) > 5 * 1024 * 1024:
+        raise ValueError(
+            "Reference image must be 5 MB or smaller."
+        )
+
+    return image_data, match.group(1)
 
 
 # =========================================================
@@ -295,12 +345,64 @@ def execute_generated_parser(parser_code, response_data):
 @app.post("/api/generate")
 def generate():
     try:
-        payload = request.get_json(silent=True)
+        # Frontend sends JSON.stringify(...) with application/json.
+        # This also supports FormData if another client uses it.
+        if request.is_json:
+            payload = request.get_json(silent=True)
 
-        if not isinstance(payload, dict):
+            if not isinstance(payload, dict):
+                return jsonify({
+                    "success": False,
+                    "error": "Request must contain valid JSON.",
+                }), 400
+
+        elif request.form:
+            payload = request.form.to_dict()
+
+            for key in ("fields", "custom_fields"):
+                if key in payload:
+                    try:
+                        payload[key] = json.loads(payload[key])
+                    except (ValueError, TypeError):
+                        payload[key] = []
+
+            if "reference_image" in request.files:
+                uploaded = request.files["reference_image"]
+
+                if uploaded and uploaded.filename:
+                    raw_image = uploaded.read(5 * 1024 * 1024 + 1)
+
+                    if len(raw_image) > 5 * 1024 * 1024:
+                        return jsonify({
+                            "success": False,
+                            "error": "Reference image must be 5 MB or smaller.",
+                        }), 400
+
+                    mime = uploaded.mimetype or "image/png"
+
+                    if mime not in (
+                        "image/png",
+                        "image/jpeg",
+                        "image/webp",
+                    ):
+                        return jsonify({
+                            "success": False,
+                            "error": "Reference image must be PNG, JPG or WebP.",
+                        }), 400
+
+                    payload["reference_image"] = (
+                        f"data:{mime};base64,"
+                        + base64.b64encode(raw_image).decode("ascii")
+                    )
+        else:
             return jsonify({
-                "error": "Request must contain valid JSON."
+                "success": False,
+                "error": "Send a JSON or form-data request.",
             }), 400
+
+        # -------------------------------------------------
+        # READ INPUT
+        # -------------------------------------------------
 
         mode = str(
             payload.get("mode", "response")
@@ -321,29 +423,46 @@ def generate():
         selected_fields = payload.get("fields", [])
         custom_fields = payload.get("custom_fields", [])
 
+        if isinstance(selected_fields, str):
+            try:
+                selected_fields = json.loads(selected_fields)
+            except ValueError:
+                selected_fields = []
+
+        if isinstance(custom_fields, str):
+            try:
+                custom_fields = json.loads(custom_fields)
+            except ValueError:
+                custom_fields = []
+
         if category not in WEBSITE_TYPES:
             return jsonify({
-                "error": "Invalid website category."
+                "success": False,
+                "error": "Invalid website category.",
             }), 400
 
         if mode not in ("curl", "response"):
             return jsonify({
-                "error": "Invalid parser mode."
+                "success": False,
+                "error": "Invalid parser mode.",
             }), 400
 
         if not input_text:
             return jsonify({
-                "error": "Please provide cURL or response data."
+                "success": False,
+                "error": "Please provide cURL or response data.",
             }), 400
 
         if not isinstance(selected_fields, list):
             return jsonify({
-                "error": "Fields must be provided as a list."
+                "success": False,
+                "error": "Fields must be provided as a list.",
             }), 400
 
         if not isinstance(custom_fields, list):
             return jsonify({
-                "error": "Custom fields must be provided as a list."
+                "success": False,
+                "error": "Custom fields must be provided as a list.",
             }), 400
 
         fields = []
@@ -356,14 +475,15 @@ def generate():
 
         if not fields:
             return jsonify({
-                "error": "Select at least one field to extract."
+                "success": False,
+                "error": "Select at least one field to extract.",
             }), 400
 
-        request_info = None
+        # -------------------------------------------------
+        # GET RESPONSE
+        # -------------------------------------------------
 
-        # -------------------------------------------------
-        # GET RESPONSE FROM CURL OR USER INPUT
-        # -------------------------------------------------
+        request_info = None
 
         if mode == "curl":
             response_data, request_info = execute_curl_request(
@@ -376,75 +496,32 @@ def generate():
             if response_type == "json":
                 try:
                     json.loads(response_data)
-
                 except json.JSONDecodeError as exc:
                     return jsonify({
+                        "success": False,
                         "error": (
                             f"Invalid JSON: {exc.msg} "
-                            f"(line {exc.lineno}, "
-                            f"column {exc.colno})."
-                        )
+                            f"(line {exc.lineno}, column {exc.colno}). "
+                            "If you pasted HTML, select HTML response type."
+                        ),
                     }), 400
 
             elif response_type != "html":
                 return jsonify({
-                    "error": "Response type must be JSON or HTML."
+                    "success": False,
+                    "error": "Response type must be JSON or HTML.",
                 }), 400
 
         # -------------------------------------------------
-        # OPTIONAL REFERENCE IMAGE
+        # OPTIONAL IMAGE
         # -------------------------------------------------
 
-        image_data = None
-        image_mime_type = None
-
-        image_data_url = payload.get("reference_image")
-
-        if image_data_url:
-            if (
-                not isinstance(image_data_url, str)
-                or "," not in image_data_url
-            ):
-                return jsonify({
-                    "error": "Invalid reference image data."
-                }), 400
-
-            header, encoded = image_data_url.split(",", 1)
-
-            match = re.fullmatch(
-                r"data:(image/(?:png|jpeg|webp));base64",
-                header,
-            )
-
-            if not match:
-                return jsonify({
-                    "error": (
-                        "Reference image must be PNG, JPG or WebP."
-                    )
-                }), 400
-
-            image_mime_type = match.group(1)
-
-            try:
-                image_data = base64.b64decode(
-                    encoded,
-                    validate=True,
-                )
-
-            except (ValueError, base64.binascii.Error):
-                return jsonify({
-                    "error": "Could not decode the reference image."
-                }), 400
-
-            if len(image_data) > 5 * 1024 * 1024:
-                return jsonify({
-                    "error": (
-                        "Reference image must be 5 MB or smaller."
-                    )
-                }), 400
+        image_data, image_mime_type = decode_reference_image(
+            payload.get("reference_image")
+        )
 
         # -------------------------------------------------
-        # GEMINI PARSER GENERATION
+        # GEMINI GENERATION
         # -------------------------------------------------
 
         required_fields = "\n".join(fields)
@@ -461,10 +538,11 @@ def generate():
 
         if not parser_code:
             return jsonify({
+                "success": False,
                 "error": (
                     "Gemini returned empty parser code. "
                     "Please try again."
-                )
+                ),
             }), 502
 
         # -------------------------------------------------
@@ -476,22 +554,23 @@ def generate():
                 parser_code,
                 response_data,
             )
-
             execution_error = None
 
         except Exception as exc:
             app.logger.exception(
                 "Generated parser execution failed"
             )
-
             extracted_data = []
             execution_error = str(exc)
 
         if isinstance(extracted_data, list):
             record_count = len(extracted_data)
+        elif extracted_data is not None:
+            record_count = 1
         else:
-            record_count = 1 if extracted_data is not None else 0
+            record_count = 0
 
+        # These keys match the current frontend script.js.
         return jsonify({
             "success": True,
             "parser_code": parser_code,
@@ -505,19 +584,25 @@ def generate():
         app.logger.exception("cURL request failed")
 
         return jsonify({
-            "error": f"Could not fetch the cURL URL: {str(exc)}"
+            "success": False,
+            "error": (
+                "Could not fetch the cURL URL: "
+                f"{str(exc)}"
+            ),
         }), 502
 
     except ValueError as exc:
         return jsonify({
-            "error": str(exc)
+            "success": False,
+            "error": str(exc),
         }), 400
 
     except Exception as exc:
         app.logger.exception("Parser generation failed")
 
         return jsonify({
-            "error": f"Parser generation failed: {str(exc)}"
+            "success": False,
+            "error": f"Parser generation failed: {str(exc)}",
         }), 500
 
 
@@ -528,10 +613,11 @@ def generate():
 @app.errorhandler(413)
 def file_too_large(_error):
     return jsonify({
+        "success": False,
         "error": (
             "Request too large. "
             "Reference images must be 5 MB or smaller."
-        )
+        ),
     }), 413
 
 
@@ -539,7 +625,8 @@ def file_too_large(_error):
 def not_found(_error):
     if request.path.startswith("/api/"):
         return jsonify({
-            "error": "API endpoint not found."
+            "success": False,
+            "error": "API endpoint not found.",
         }), 404
 
     return "Page not found", 404
