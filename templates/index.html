@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#07111b">
-    <title>NEXRA</title>
+    <title>NEXRA - Parser Generator</title>
 
     <link rel="stylesheet" href="/style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -12,7 +12,120 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 
     <style>
-        /* Additional Prompt: full-width horizontal section */
+        /* ===== MAIN LAYOUT ===== */
+
+        .workspace-grid {
+            align-items: stretch;
+        }
+
+        .workspace-grid > .panel {
+            min-width: 0;
+        }
+
+        /* ===== REFERENCE IMAGE PANEL ===== */
+
+        .action-panel {
+            min-width: 0;
+            min-height: 420px;
+            height: auto;
+        }
+
+        .upload-area-large {
+            min-height: 320px;
+            width: 100%;
+            padding: 24px 16px;
+            box-sizing: border-box;
+
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+
+            border: 1px dashed #31556b;
+            border-radius: 10px;
+            background: #08131e;
+            text-align: center;
+            cursor: default;
+        }
+
+        .upload-icon-large {
+            width: 58px;
+            height: 58px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border: 1px solid #31556b;
+            border-radius: 12px;
+            color: #00d5df;
+            font-size: 24px;
+        }
+
+        .upload-area-large strong {
+            color: #e5edf5;
+            font-size: 13px;
+        }
+
+        .upload-area-large > span {
+            color: #8297aa;
+            font-size: 11px;
+        }
+
+        .add-image-button {
+            min-width: 130px;
+            margin-top: 8px;
+            cursor: pointer;
+        }
+
+        /* ===== IMAGE PREVIEWS ===== */
+
+        .image-list {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .image-card {
+            min-width: 0;
+            overflow: hidden;
+            border: 1px solid #284457;
+            border-radius: 8px;
+            background: #0b1b28;
+        }
+
+        .image-card img {
+            display: block;
+            width: 100%;
+            height: 120px;
+            object-fit: cover;
+        }
+
+        .image-card-name {
+            display: block;
+            padding: 8px;
+            color: #dce8f2;
+            font-size: 11px;
+            overflow-wrap: anywhere;
+        }
+
+        .remove-selected-image {
+            width: 100%;
+            padding: 8px;
+            border: 0;
+            border-top: 1px solid #284457;
+            background: #122536;
+            color: #ff9c9c;
+            font-size: 11px;
+            cursor: pointer;
+        }
+
+        .remove-selected-image:hover {
+            background: #20384a;
+        }
+
+        /* ===== FULL-WIDTH ADDITIONAL PROMPT ===== */
+
         .additional-prompt-section {
             width: 100%;
             box-sizing: border-box;
@@ -25,9 +138,8 @@
 
         .additional-prompt-heading {
             display: flex;
-            align-items: center;
             justify-content: space-between;
-            gap: 12px;
+            align-items: center;
             margin-bottom: 10px;
         }
 
@@ -46,18 +158,20 @@
         #parser-prompt {
             display: block;
             width: 100%;
-            min-height: 90px;
             height: 100px;
-            max-height: 220px;
-            padding: 12px 14px;
+            min-height: 80px;
+            max-height: 240px;
             box-sizing: border-box;
+            padding: 12px 14px;
             resize: vertical;
+
             border: 1px solid #285065;
             border-radius: 7px;
             outline: none;
+
             background: #08131e;
             color: #e5edf5;
-            font: inherit;
+            font-family: inherit;
             font-size: 12px;
             line-height: 1.6;
         }
@@ -78,6 +192,8 @@
             font-size: 11px;
         }
 
+        /* ===== GENERATE BUTTON ===== */
+
         .generate-action-row {
             display: flex;
             justify-content: center;
@@ -90,29 +206,28 @@
             min-height: 44px;
         }
 
-        /* Keep the three main panels aligned at the top */
-        .workspace-grid {
-            align-items: start;
-        }
+        /* ===== RESPONSIVE ===== */
 
-        .workspace-grid > .panel {
-            min-width: 0;
-            align-self: start;
-        }
-
-        /* Responsive layout */
         @media (max-width: 900px) {
+            .action-panel {
+                min-height: 0;
+            }
+
+            .upload-area-large {
+                min-height: 250px;
+            }
+
             .additional-prompt-section {
                 margin-top: 12px;
                 padding: 14px;
             }
-
-            #parser-prompt {
-                min-height: 85px;
-            }
         }
 
         @media (max-width: 600px) {
+            .image-list {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
             .generate-action-row .button-generate {
                 width: 100%;
             }
@@ -123,7 +238,8 @@
 <body>
 <div class="app-shell">
 
-    <!-- Sidebar -->
+    <!-- ===== SIDEBAR ===== -->
+
     <aside class="sidebar">
         <div class="brand">
             <h1>NEXRA</h1>
@@ -153,10 +269,10 @@
         </nav>
     </aside>
 
-    <!-- Main Content -->
+    <!-- ===== MAIN CONTENT ===== -->
+
     <main class="main-content">
 
-        <!-- Breadcrumb -->
         <header class="topbar">
             <div class="breadcrumb">
                 <span>Workspace</span>
@@ -165,7 +281,6 @@
             </div>
         </header>
 
-        <!-- Page Heading -->
         <section class="page-heading">
             <div class="heading-icon" id="heading-icon">&lt;_</div>
             <div>
@@ -176,10 +291,12 @@
             </div>
         </section>
 
-        <!-- Three Main Panels -->
+        <!-- ===== THREE MAIN PANELS ===== -->
+
         <section class="workspace-grid">
 
-            <!-- Input Panel -->
+            <!-- CURL / RESPONSE INPUT -->
+
             <div class="panel input-panel">
                 <div class="panel-heading">
                     <div>
@@ -202,7 +319,7 @@
 
                 <div class="input-type-row" id="response-type-row" hidden>
                     <label for="response-type">Input type</label>
-                    <select id="response-type" class="form-control type-select">
+                    <select id="response-type" class="form-control">
                         <option value="json">JSON</option>
                         <option value="html">HTML</option>
                     </select>
@@ -225,7 +342,8 @@
                 </div>
             </div>
 
-            <!-- Configuration Panel -->
+            <!-- CONFIGURATION -->
+
             <div class="panel config-panel">
                 <div class="panel-heading">
                     <div>
@@ -273,6 +391,7 @@
                             class="form-control"
                             placeholder="e.g. seller_name"
                         >
+
                         <button class="button button-add" id="add-field" type="button">
                             Add
                         </button>
@@ -280,44 +399,54 @@
                 </div>
             </div>
 
-            <!-- Reference Image Panel -->
+            <!-- REFERENCE IMAGES -->
+
             <div class="panel action-panel">
                 <div class="panel-heading">
                     <div>
                         <h3>
                             <span class="heading-symbol">▧</span>
-                            Reference Image
+                            Reference Images
                         </h3>
-                        <p>Optional visual reference</p>
+                        <p>Optional visual references</p>
                     </div>
+
                     <span class="optional-badge">Optional</span>
                 </div>
 
-                <label class="upload-area" for="reference-image" id="upload-area">
+                <div class="upload-area upload-area-large" id="upload-area">
                     <input
                         type="file"
                         id="reference-image"
                         accept="image/png,image/jpeg,image/webp"
+                        multiple
                         hidden
                     >
 
-                    <span class="upload-icon">▧</span>
-                    <strong id="upload-title">Upload a screenshot</strong>
-                    <span>PNG, JPG or WebP</span>
-                    <span class="upload-limit">Maximum 5 MB</span>
-                </label>
+                    <span class="upload-icon-large">▧</span>
 
-                <div class="image-preview" id="image-preview" hidden>
-                    <img id="preview-img" alt="Reference preview">
-                    <button type="button" id="remove-image" class="remove-image">
-                        Remove image
+                    <strong>Select reference images</strong>
+
+                    <span>PNG, JPG or WebP</span>
+                    <span>Maximum 5 MB per image</span>
+
+                    <button
+                        class="button button-add add-image-button"
+                        id="add-image-btn"
+                        type="button"
+                    >
+                        + Add Image
                     </button>
                 </div>
+
+                <!-- JavaScript renders image previews here -->
+                <div id="image-list" class="image-list"></div>
             </div>
 
         </section>
 
-        <!-- Full-Width Additional Prompt -->
+        <!-- ===== FULL-WIDTH ADDITIONAL PROMPT ===== -->
+
         <section class="additional-prompt-section">
             <div class="additional-prompt-heading">
                 <label for="parser-prompt">
@@ -336,7 +465,8 @@
             </span>
         </section>
 
-        <!-- Generate Button Below Prompt -->
+        <!-- ===== GENERATE BUTTON ===== -->
+
         <div class="generate-action-row">
             <button class="button button-generate" id="generate-btn" type="button">
                 <span class="generate-icon">✦</span>
@@ -345,10 +475,12 @@
             </button>
         </div>
 
-        <!-- Generated Results -->
-        <section class="results-grid" id="results-section">
+        <!-- ===== GENERATED RESULTS ===== -->
 
-            <!-- Python Code -->
+        <section class="results-grid" id="results-section" hidden>
+
+            <!-- PYTHON CODE -->
+
             <div class="panel result-panel">
                 <div class="result-header">
                     <div class="result-title">
@@ -363,6 +495,7 @@
                         <button class="button button-secondary button-small" id="copy-code" type="button">
                             ▢ Copy
                         </button>
+
                         <button class="button button-secondary button-small" id="download-code" type="button">
                             ↓ .py
                         </button>
@@ -384,7 +517,8 @@ def parse_data(data):
                 </div>
             </div>
 
-            <!-- JSON Output -->
+            <!-- JSON OUTPUT -->
+
             <div class="panel result-panel">
                 <div class="result-header">
                     <div class="result-title">
@@ -399,6 +533,7 @@ def parse_data(data):
                         <button class="button button-secondary button-small" id="copy-json" type="button">
                             ▢ Copy
                         </button>
+
                         <button class="button button-secondary button-small" id="download-json" type="button">
                             ↓ .json
                         </button>
@@ -422,9 +557,14 @@ def parse_data(data):
 
         </section>
 
-        <!-- Footer -->
+        <!-- ===== FOOTER ===== -->
+
         <footer class="page-footer">
-            <span>NEXRA <span class="footer-separator">/</span> Parser Workspace</span>
+            <span>
+                NEXRA
+                <span class="footer-separator">/</span>
+                Parser Workspace
+            </span>
             <span>Built for developers</span>
         </footer>
 

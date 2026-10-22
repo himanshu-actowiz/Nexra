@@ -1,18 +1,28 @@
 document.addEventListener("DOMContentLoaded", () => {
     const $ = (selector) => document.querySelector(selector);
 
+    // ---------- DOM ELEMENTS ----------
+
     const requestInput = $("#request-input");
     const categorySelect = $("#category");
     const fieldsContainer = $("#fields-container");
     const selectAllCheckbox = $("#select-all");
     const customFieldInput = $("#custom-field");
     const referenceImageInput = $("#reference-image");
+    const imageList = $("#image-list");
+    const addImageButton = $("#add-image-btn");
+    const additionalPromptInput = $("#parser-prompt");
     const toast = $("#toast");
 
     let currentMode = "curl";
     let customFields = [];
     let toastTimer;
-    let imagePreviewUrl = null;
+    let imageIdCounter = 0;
+
+    // Store all selected reference images.
+    let selectedImages = [];
+
+    // ---------- FIELD OPTIONS ----------
 
     const FIELD_OPTIONS = {
         Ecommerce: [
@@ -21,6 +31,7 @@ document.addEventListener("DOMContentLoaded", () => {
             "currency", "availability", "image_url", "product_url",
             "rating", "review_count"
         ],
+
         Airline: [
             "airline", "flight_number", "operating_carrier",
             "departure_airport", "arrival_airport", "departure_time",
@@ -28,33 +39,39 @@ document.addEventListener("DOMContentLoaded", () => {
             "fare_basis_code", "base_fare", "taxes", "gross_fare",
             "currency", "availability"
         ],
+
         Hotel: [
             "hotel_name", "hotel_id", "address", "city", "country",
             "latitude", "longitude", "room_type", "price", "currency",
             "rating", "amenities", "image_url", "hotel_url"
         ],
+
         Restaurant: [
             "restaurant_name", "restaurant_id", "address", "phone",
             "item_id", "item_name", "category", "description",
             "item_price", "currency", "availability", "rating",
             "delivery_fee", "minimum_order"
         ],
+
         Grocery: [
             "product_name", "product_id", "brand", "category", "price",
             "original_price", "sale_price", "currency", "unit_price",
             "package_size", "measurement_unit", "availability", "sku",
             "upc", "image_url", "product_url"
         ],
+
         Bus: [
             "operator", "bus_number", "origin", "destination",
             "departure_time", "arrival_time", "travel_date", "bus_type",
             "price", "currency", "seat_availability"
         ],
+
         Train: [
             "train_name", "train_number", "origin", "destination",
             "departure_time", "arrival_time", "travel_date", "class",
             "price", "currency", "availability"
         ],
+
         Other: [
             "name", "id", "title", "description",
             "price", "currency", "status", "url"
@@ -77,6 +94,62 @@ document.addEventListener("DOMContentLoaded", () => {
         }, 3200);
     }
 
+    // ---------- OUTPUT HELPERS ----------
+
+    function setOutputText(selector, value) {
+        const element = $(selector);
+
+        if (element) {
+            element.textContent = value ?? "";
+        }
+    }
+
+    function renderExtractedOutput(data) {
+        const output = $("#json-output");
+
+        if (!output) return;
+
+        if (data === undefined || data === null) {
+            output.textContent = JSON.stringify([], null, 2);
+            return;
+        }
+
+        if (typeof data === "string") {
+            try {
+                output.textContent = JSON.stringify(
+                    JSON.parse(data),
+                    null,
+                    2
+                );
+            } catch {
+                output.textContent = data;
+            }
+
+            return;
+        }
+
+        output.textContent = JSON.stringify(data, null, 2);
+    }
+
+    function setGenerating(isGenerating) {
+        const button = $("#generate-btn");
+
+        if (!button) return;
+
+        if (isGenerating) {
+            button.dataset.originalHtml = button.innerHTML;
+            button.disabled = true;
+            button.textContent = "Generating...";
+        } else {
+            button.disabled = false;
+
+            if (button.dataset.originalHtml) {
+                button.innerHTML = button.dataset.originalHtml;
+                delete button.dataset.originalHtml;
+            }
+        }
+    }
+
     // ---------- FIELD SELECTION ----------
 
     function getSelectedFields() {
@@ -84,7 +157,7 @@ document.addEventListener("DOMContentLoaded", () => {
             ...fieldsContainer.querySelectorAll(
                 'input[type="checkbox"]:checked'
             )
-        ].map((box) => box.value);
+        ].map((checkbox) => checkbox.value);
 
         return [...new Set([...selected, ...customFields])];
     }
@@ -96,13 +169,15 @@ document.addEventListener("DOMContentLoaded", () => {
             )
         ];
 
-        const count = boxes.filter((box) => box.checked).length;
+        const checkedCount = boxes.filter(
+            (checkbox) => checkbox.checked
+        ).length;
 
         selectAllCheckbox.checked =
-            boxes.length > 0 && count === boxes.length;
+            boxes.length > 0 && checkedCount === boxes.length;
 
         selectAllCheckbox.indeterminate =
-            count > 0 && count < boxes.length;
+            checkedCount > 0 && checkedCount < boxes.length;
     }
 
     function renderFields() {
@@ -149,7 +224,8 @@ document.addEventListener("DOMContentLoaded", () => {
                         (item) => item !== field
                     );
 
-                    label.remove();
+                    renderFields();
+                    return;
                 }
 
                 updateSelectAllState();
@@ -170,8 +246,8 @@ document.addEventListener("DOMContentLoaded", () => {
     selectAllCheckbox.addEventListener("change", () => {
         fieldsContainer
             .querySelectorAll('input[type="checkbox"]')
-            .forEach((box) => {
-                box.checked = selectAllCheckbox.checked;
+            .forEach((checkbox) => {
+                checkbox.checked = selectAllCheckbox.checked;
             });
 
         updateSelectAllState();
@@ -205,9 +281,9 @@ document.addEventListener("DOMContentLoaded", () => {
             ...fieldsContainer.querySelectorAll(
                 'input[type="checkbox"]'
             )
-        ].some((box) => box.value === field);
+        ].some((checkbox) => checkbox.value === field);
 
-        if (exists) {
+        if (exists || customFields.includes(field)) {
             showToast("This field already exists.", "error");
             return;
         }
@@ -248,6 +324,8 @@ document.addEventListener("DOMContentLoaded", () => {
             title: "Response to Parser",
             description:
                 "Generate a Python parser directly from JSON or HTML input.",
+            inputTitle: "JSON Response",
+            inputDescription: "Paste your JSON response below",
             hint: "Paste your response data to get started"
         }
     };
@@ -258,8 +336,10 @@ document.addEventListener("DOMContentLoaded", () => {
     // ---------- CHARACTER COUNT ----------
 
     function updateCharacterCount() {
-        $("#char-count").textContent =
-            `${requestInput.value.length.toLocaleString()} characters`;
+        setOutputText(
+            "#char-count",
+            `${requestInput.value.length.toLocaleString()} characters`
+        );
     }
 
     // ---------- JSON / HTML INPUT ----------
@@ -268,23 +348,166 @@ document.addEventListener("DOMContentLoaded", () => {
         const type = responseType.value;
         const isJson = type === "json";
 
-        $("#input-title").textContent = isJson
-            ? "JSON Response"
-            : "HTML Response";
+        setOutputText(
+            "#input-title",
+            isJson ? "JSON Response" : "HTML Response"
+        );
 
-        $("#input-description").textContent = isJson
-            ? "Paste your JSON response below"
-            : "Paste your HTML response below";
+        setOutputText(
+            "#input-description",
+            isJson
+                ? "Paste your JSON response below"
+                : "Paste your HTML response below"
+        );
 
-        $("#input-hint").textContent = isJson
-            ? "Paste the JSON response you want to parse"
-            : "Paste the HTML response you want to parse";
+        setOutputText(
+            "#input-hint",
+            isJson
+                ? "Paste the JSON response you want to parse"
+                : "Paste the HTML response you want to parse"
+        );
 
         requestInput.placeholder = isJson
             ? '{\n  "products": [\n    { "name": "Example Product", "price": 29.99 }\n  ]\n}'
             : '<div class="product">\n  <h2>Example Product</h2>\n  <span class="price">29.99</span>\n</div>';
 
         updateCharacterCount();
+    }
+
+    // ---------- MULTIPLE REFERENCE IMAGES ----------
+
+    function clearSelectedImages() {
+        selectedImages.forEach((item) => {
+            URL.revokeObjectURL(item.previewUrl);
+        });
+
+        selectedImages = [];
+
+        if (imageList) {
+            imageList.replaceChildren();
+        }
+
+        if (referenceImageInput) {
+            referenceImageInput.value = "";
+        }
+    }
+
+    function renderImageList() {
+        if (!imageList) return;
+
+        imageList.replaceChildren();
+
+        selectedImages.forEach((item) => {
+            const card = document.createElement("div");
+            card.className = "image-card";
+
+            const image = document.createElement("img");
+            image.src = item.previewUrl;
+            image.alt = item.file.name;
+
+            const filename = document.createElement("span");
+            filename.className = "image-card-name";
+            filename.textContent = item.file.name;
+            filename.title = item.file.name;
+
+            const removeButton = document.createElement("button");
+            removeButton.type = "button";
+            removeButton.className = "remove-selected-image";
+            removeButton.textContent = "Remove";
+
+            removeButton.addEventListener("click", () => {
+                const removedImage = selectedImages.find(
+                    (selected) => selected.id === item.id
+                );
+
+                if (removedImage) {
+                    URL.revokeObjectURL(removedImage.previewUrl);
+                }
+
+                selectedImages = selectedImages.filter(
+                    (selected) => selected.id !== item.id
+                );
+
+                renderImageList();
+
+                showToast("Reference image removed.");
+            });
+
+            card.append(image, filename, removeButton);
+            imageList.append(card);
+        });
+    }
+
+    if (addImageButton && referenceImageInput) {
+        addImageButton.addEventListener("click", () => {
+            referenceImageInput.click();
+        });
+    }
+
+    if (referenceImageInput) {
+        referenceImageInput.addEventListener("change", () => {
+            const files = Array.from(referenceImageInput.files || []);
+
+            if (!files.length) return;
+
+            let addedCount = 0;
+
+            files.forEach((file) => {
+                if (
+                    ![
+                        "image/png",
+                        "image/jpeg",
+                        "image/webp"
+                    ].includes(file.type)
+                ) {
+                    showToast(
+                        `${file.name}: unsupported image format.`,
+                        "error"
+                    );
+
+                    return;
+                }
+
+                if (file.size > 5 * 1024 * 1024) {
+                    showToast(
+                        `${file.name}: maximum image size is 5 MB.`,
+                        "error"
+                    );
+
+                    return;
+                }
+
+                const alreadyAdded = selectedImages.some(
+                    (item) =>
+                        item.file.name === file.name &&
+                        item.file.size === file.size &&
+                        item.file.lastModified === file.lastModified
+                );
+
+                if (alreadyAdded) {
+                    return;
+                }
+
+                selectedImages.push({
+                    id: ++imageIdCounter,
+                    file,
+                    previewUrl: URL.createObjectURL(file)
+                });
+
+                addedCount++;
+            });
+
+            // Allow selecting the same file again after removing it.
+            referenceImageInput.value = "";
+
+            renderImageList();
+
+            if (addedCount > 0) {
+                showToast(
+                    `${addedCount} image(s) added successfully.`
+                );
+            }
+        });
     }
 
     // ---------- SIDEBAR MODE SWITCHING ----------
@@ -296,17 +519,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 currentMode = button.dataset.mode;
 
                 requestInput.value = "";
-                referenceImageInput.value = "";
 
-                if (imagePreviewUrl) {
-                    URL.revokeObjectURL(imagePreviewUrl);
-                    imagePreviewUrl = null;
+                clearSelectedImages();
+
+                if (additionalPromptInput) {
+                    additionalPromptInput.value = "";
                 }
-
-                $("#preview-img").removeAttribute("src");
-                $("#image-preview").hidden = true;
-                $("#upload-area").hidden = false;
-                $("#upload-title").textContent = "Upload a screenshot";
 
                 document
                     .querySelectorAll(".nav-item[data-mode]")
@@ -319,28 +537,42 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 const modeSettings = settings[currentMode];
 
-                $("#page-title").textContent = modeSettings.title;
-                $("#page-description").textContent =
-                    modeSettings.description;
+                setOutputText("#page-title", modeSettings.title);
+                setOutputText(
+                    "#page-description",
+                    modeSettings.description
+                );
 
-                $("#heading-icon").textContent =
-                    currentMode === "curl" ? ">_" : "{ }";
+                setOutputText(
+                    "#heading-icon",
+                    currentMode === "curl" ? ">_" : "{ }"
+                );
 
-                $("#input-symbol").textContent =
-                    currentMode === "curl" ? ">_" : "{ }";
+                setOutputText(
+                    "#input-symbol",
+                    currentMode === "curl" ? ">_" : "{ }"
+                );
 
-                responseTypeRow.hidden =
-                    currentMode !== "response";
+                if (responseTypeRow) {
+                    responseTypeRow.hidden =
+                        currentMode !== "response";
+                }
 
                 if (currentMode === "curl") {
-                    $("#input-title").textContent =
-                        modeSettings.inputTitle;
+                    setOutputText(
+                        "#input-title",
+                        modeSettings.inputTitle
+                    );
 
-                    $("#input-description").textContent =
-                        modeSettings.inputDescription;
+                    setOutputText(
+                        "#input-description",
+                        modeSettings.inputDescription
+                    );
 
-                    $("#input-hint").textContent =
-                        modeSettings.hint;
+                    setOutputText(
+                        "#input-hint",
+                        modeSettings.hint
+                    );
 
                     requestInput.placeholder =
                         modeSettings.placeholder;
@@ -354,10 +586,12 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         });
 
-    responseType.addEventListener(
-        "change",
-        updateResponseInput
-    );
+    if (responseType) {
+        responseType.addEventListener(
+            "change",
+            updateResponseInput
+        );
+    }
 
     requestInput.addEventListener(
         "input",
@@ -373,70 +607,6 @@ document.addEventListener("DOMContentLoaded", () => {
         requestInput.focus();
 
         showToast("Input cleared.");
-    });
-
-    // ---------- REFERENCE IMAGE ----------
-
-    referenceImageInput.addEventListener("change", () => {
-        const file = referenceImageInput.files[0];
-
-        if (!file) return;
-
-        if (
-            !["image/png", "image/jpeg", "image/webp"].includes(
-                file.type
-            )
-        ) {
-            referenceImageInput.value = "";
-
-            showToast(
-                "Please select a PNG, JPG or WebP image.",
-                "error"
-            );
-
-            return;
-        }
-
-        if (file.size > 5 * 1024 * 1024) {
-            referenceImageInput.value = "";
-
-            showToast(
-                "Image size must be 5 MB or less.",
-                "error"
-            );
-
-            return;
-        }
-
-        if (imagePreviewUrl) {
-            URL.revokeObjectURL(imagePreviewUrl);
-        }
-
-        imagePreviewUrl = URL.createObjectURL(file);
-
-        $("#preview-img").src = imagePreviewUrl;
-        $("#image-preview").hidden = false;
-        $("#upload-area").hidden = true;
-        $("#upload-title").textContent = file.name;
-
-        showToast("Reference image selected.");
-    });
-
-    $("#remove-image").addEventListener("click", () => {
-        referenceImageInput.value = "";
-
-        if (imagePreviewUrl) {
-            URL.revokeObjectURL(imagePreviewUrl);
-        }
-
-        imagePreviewUrl = null;
-
-        $("#preview-img").removeAttribute("src");
-        $("#image-preview").hidden = true;
-        $("#upload-area").hidden = false;
-        $("#upload-title").textContent = "Upload a screenshot";
-
-        showToast("Reference image removed.");
     });
 
     // ---------- COPY / DOWNLOAD ----------
@@ -459,7 +629,7 @@ document.addEventListener("DOMContentLoaded", () => {
             console.error("Clipboard error:", error);
 
             showToast(
-                "Clipboard failed. Check browser clipboard permissions.",
+                "Clipboard failed. Check browser permissions.",
                 "error"
             );
         }
@@ -480,7 +650,6 @@ document.addEventListener("DOMContentLoaded", () => {
         );
 
         const link = document.createElement("a");
-
         link.href = url;
         link.download = filename;
 
@@ -536,12 +705,11 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    // ---------- GENERATE PARSER: BACKEND CONNECTION ----------
+    // ---------- GENERATE PARSER ----------
 
-    $("#generate-btn").addEventListener("click", async () => {
+    async function generateParser() {
         const input = requestInput.value.trim();
         const selectedFields = getSelectedFields();
-        const generateButton = $("#generate-btn");
 
         if (!input) {
             showToast(
@@ -564,7 +732,6 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        const originalButtonHTML = generateButton.innerHTML;
         const formData = new FormData();
 
         formData.append("input", input);
@@ -578,31 +745,41 @@ document.addEventListener("DOMContentLoaded", () => {
 
         formData.append(
             "response_type",
-            responseType.value
+            responseType ? responseType.value : "json"
         );
 
-        // ---------- ADDITIONAL PROMPT ----------
-        // Read the user's optional instructions from the textarea.
-        const additionalPrompt = $("#parser-prompt");
-
+        // Send Additional Prompt.
         formData.append(
             "prompt",
-            additionalPrompt
-                ? additionalPrompt.value.trim()
+            additionalPromptInput
+                ? additionalPromptInput.value.trim()
                 : ""
         );
 
-        // ---------- REFERENCE IMAGE ----------
+        // Send custom fields separately if the backend uses them.
+        formData.append(
+            "custom_fields",
+            JSON.stringify(customFields)
+        );
 
-        const imageFile = referenceImageInput.files[0];
-
-        if (imageFile) {
-            formData.append("reference_image", imageFile);
-        }
+        // Send the first image under the existing backend field name.
+        // Send additional images under "reference_images".
+        selectedImages.forEach((item, index) => {
+            if (index === 0) {
+                formData.append(
+                    "reference_image",
+                    item.file
+                );
+            } else {
+                formData.append(
+                    "reference_images",
+                    item.file
+                );
+            }
+        });
 
         try {
-            generateButton.disabled = true;
-            generateButton.textContent = "Generating...";
+            setGenerating(true);
 
             showToast("Generating parser. Please wait...");
 
@@ -611,19 +788,13 @@ document.addEventListener("DOMContentLoaded", () => {
                 body: formData
             });
 
-            const contentType =
-                response.headers.get("content-type") || "";
-
             let result;
 
-            if (contentType.includes("application/json")) {
+            try {
                 result = await response.json();
-            } else {
-                const responseText = await response.text();
-
+            } catch {
                 throw new Error(
-                    responseText ||
-                    `Server returned HTTP ${response.status}`
+                    `Server returned an unreadable response (HTTP ${response.status}).`
                 );
             }
 
@@ -631,24 +802,24 @@ document.addEventListener("DOMContentLoaded", () => {
                 throw new Error(
                     result.error ||
                     result.message ||
-                    `Request failed with status ${response.status}`
+                    `Request failed with HTTP ${response.status}.`
                 );
             }
 
             const pythonCode =
-                result.python_code ??
                 result.parser_code ??
-                result.code ??
+                result.python_code ??
                 result.generated_code ??
+                result.code ??
                 "";
 
-            const jsonOutput =
+            const extractedData =
+                result.extracted_data ??
                 result.json_output ??
                 result.output_json ??
-                result.extracted_data ??
-                result.data ??
                 result.parsed_data ??
-                {};
+                result.data ??
+                [];
 
             if (
                 typeof pythonCode !== "string" ||
@@ -660,45 +831,110 @@ document.addEventListener("DOMContentLoaded", () => {
                 );
 
                 throw new Error(
-                    "Backend responded, but no Python code was returned. Check the /api/generate response format."
+                    "No parser code was returned by the backend."
                 );
             }
 
-            $("#results-section").hidden = false;
+            // Display generated code and extracted data.
+            setOutputText("#code-output", pythonCode);
+            renderExtractedOutput(extractedData);
 
-            $("#code-output").textContent = pythonCode;
+            const requestInfo = result.request_info;
 
-            $("#json-output").textContent =
-                typeof jsonOutput === "string"
-                    ? jsonOutput
-                    : JSON.stringify(jsonOutput, null, 2);
+            const requestLabel = requestInfo
+                ? ` · HTTP ${requestInfo.status_code}`
+                : "";
 
-            showToast("Parser generated successfully!");
+            setOutputText(
+                "#code-status",
+                "Parser generated successfully" + requestLabel
+            );
+
+            if (result.execution_error) {
+                setOutputText(
+                    "#json-status",
+                    "Parser generated, but execution failed"
+                );
+
+                showToast(
+                    `Parser generated, but execution failed: ${result.execution_error}`,
+                    "error"
+                );
+            } else {
+                const count = Number.isFinite(result.record_count)
+                    ? result.record_count
+                    : Array.isArray(extractedData)
+                        ? extractedData.length
+                        : 0;
+
+                setOutputText(
+                    "#json-status",
+                    `${count} record(s) extracted`
+                );
+
+                showToast("Parser generated successfully.");
+            }
+
+            const resultsSection = $("#results-section");
+
+            if (resultsSection) {
+                resultsSection.hidden = false;
+            }
 
         } catch (error) {
+            const message =
+                error && error.message
+                    ? error.message
+                    : "Unexpected error while generating parser.";
+
+            setOutputText(
+                "#code-output",
+                `# Parser generation failed\n# ${message}`
+            );
+
+            setOutputText(
+                "#json-output",
+                JSON.stringify({ error: message }, null, 2)
+            );
+
+            setOutputText(
+                "#code-status",
+                "Generation failed"
+            );
+
+            setOutputText(
+                "#json-status",
+                "No output available"
+            );
+
+            showToast(message, "error");
+
             console.error(
-                "Parser generation error:",
+                "NEXRA parser generation error:",
                 error
             );
 
-            showToast(
-                error.message ||
-                "Unable to connect to the backend.",
-                "error"
-            );
-
         } finally {
-            generateButton.disabled = false;
-            generateButton.innerHTML = originalButtonHTML;
+            setGenerating(false);
         }
-    });
+    }
+
+    $("#generate-btn").addEventListener(
+        "click",
+        generateParser
+    );
 
     // ---------- INITIALIZE ----------
 
-    $("#results-section").hidden = true;
+    const resultsSection = $("#results-section");
+
+    if (resultsSection) {
+        resultsSection.hidden = true;
+    }
 
     renderFields();
     updateCharacterCount();
+    renderImageList();
 
-    console.log("Nexra frontend initialized.");
+    console.log("NEXRA frontend initialized.");
 });
