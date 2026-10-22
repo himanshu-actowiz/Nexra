@@ -1503,3 +1503,71 @@ input[type="checkbox"] {
     font-size: 10px;
     line-height: 1.5;
 }
+
+/* ===== FIX: EXTRA VERTICAL SPACE ===== */
+
+/* Keep the main input/configuration row compact */
+.main-grid,
+.workspace-grid,
+.generator-grid {
+    align-items: start;
+}
+
+/* Prevent columns from stretching to equal height */
+.main-grid > *,
+.workspace-grid > *,
+.generator-grid > * {
+    min-height: 0;
+    height: fit-content;
+    align-self: start;
+}
+
+/* Compact configuration panel */
+.configuration-panel,
+.config-panel,
+.fields-panel {
+    min-height: 0;
+    height: auto;
+}
+
+/* Additional Prompt section */
+.additional-prompt,
+.prompt-section {
+    margin-top: 12px;
+    padding-top: 10px;
+}
+
+/* Textarea should have a fixed, reasonable height */
+#parser-prompt {
+    display: block;
+    width: 100%;
+    height: 90px;
+    min-height: 75px;
+    max-height: 130px;
+    box-sizing: border-box;
+    resize: vertical;
+    margin-top: 8px;
+}
+
+/* Reduce unnecessary spacing around custom fields */
+.custom-fields {
+    margin-bottom: 0;
+    padding-bottom: 8px;
+}
+
+/* Keep the main input textarea at its intended height */
+#request-input {
+    min-height: 220px;
+    max-height: 320px;
+}
+
+/* Avoid stretching the reference image area */
+#upload-area,
+#image-preview {
+    min-height: 0;
+}
+
+/* Keep results/actions close to the input section */
+#results-section {
+    margin-top: 16px;
+}
