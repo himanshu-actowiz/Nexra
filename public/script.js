@@ -294,6 +294,35 @@ document.addEventListener("DOMContentLoaded", () => {
         .forEach((button) => {
             button.addEventListener("click", () => {
                 currentMode = button.dataset.mode;
+                // Clear input when switching between modes
+                requestInput.value = "";
+
+                // Clear reference image when switching modes
+                referenceImageInput.value = "";
+
+                if (imagePreviewUrl) {
+                    URL.revokeObjectURL(imagePreviewUrl);
+                    imagePreviewUrl = null;
+                }
+
+                $("#preview-img").removeAttribute("src");
+                $("#image-preview").hidden = true;
+                $("#upload-area").hidden = false;
+                $("#upload-title").textContent = "Upload a screenshot";
+
+                // Reset character count
+                updateCharacterCount();
+
+                // Reset generated output
+                $("#code-output").textContent =
+                    "# Your generated Python parser will appear here.\n\n" +
+                    "def parse_data(data):\n" +
+                    "    # Your extraction logic will be generated here.\n" +
+                    "    results = []\n" +
+                    "    return results";
+
+                $("#json-output").textContent =
+                    '[\n  {\n    "message": "Your extracted data will appear here"\n  }\n]';
 
                 document
                     .querySelectorAll(".nav-item[data-mode]")
