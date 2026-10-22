@@ -314,6 +314,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 updateCharacterCount();
 
                 // Reset generated output
+                $("#results-section").hidden = true;
                 $("#code-output").textContent =
                     "# Your generated Python parser will appear here.\n\n" +
                     "def parse_data(data):\n" +
@@ -343,7 +344,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     modeSettings.description;
 
                 $("#heading-icon").textContent =
-                    currentMode === "curl" ? "<_" : "{ }";
+                    currentMode === "curl" ? ">_" : "{ }";
 
                 $("#input-symbol").textContent =
                     currentMode === "curl" ? ">_" : "{ }";
@@ -670,6 +671,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 );
             }
 
+            $("#results-section").hidden = false;
+
             $("#code-output").textContent = pythonCode;
 
             $("#json-output").textContent =
@@ -699,6 +702,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // ---------- INITIALIZE ----------
 
+    $("#results-section").hidden = true;
     renderFields();
     updateCharacterCount();
 
