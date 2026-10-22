@@ -72,6 +72,7 @@ document.addEventListener("DOMContentLoaded", () => {
         toast.classList.add("show");
 
         clearTimeout(toastTimer);
+
         toastTimer = setTimeout(() => {
             toast.classList.remove("show");
         }, 3200);
@@ -182,10 +183,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const field = customFieldInput.value.trim();
 
         if (!field) {
-            showToast(
-                "Please enter a custom field name.",
-                "error"
-            );
+            showToast("Please enter a custom field name.", "error");
             customFieldInput.focus();
             return;
         }
@@ -422,19 +420,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
     async function copyText(text, label) {
         if (!text.trim()) {
-            showToast(
-                `No ${label} available to copy.`,
-                "error"
-            );
+            showToast(`No ${label} available to copy.`, "error");
             return;
         }
 
         try {
             await navigator.clipboard.writeText(text);
             showToast(`${label} copied to clipboard.`);
-        } catch {
+        } catch (error) {
+            console.error("Clipboard error:", error);
+
             showToast(
-                "Clipboard failed. Open Nexra through localhost and try again.",
+                "Clipboard failed. Check browser clipboard permissions.",
                 "error"
             );
         }
@@ -442,10 +439,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function downloadText(text, filename, mime) {
         if (!text.trim()) {
-            showToast(
-                "There is no content to download.",
-                "error"
-            );
+            showToast("There is no content to download.", "error");
             return;
         }
 
@@ -495,7 +489,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 "nexra_output.json",
                 "application/json;charset=utf-8"
             );
-        } catch {
+        } catch (error) {
             showToast(
                 "The displayed output is not valid JSON yet.",
                 "error"
@@ -503,10 +497,14 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    // ---------- GENERATE PARSER ----------
+    // ---------- GENERATE PARSER: BACKEND CONNECTION ----------
 
-    $("#generate-btn").addEventListener("click", () => {
-        if (!requestInput.value.trim()) {
+    $("#generate-btn").addEventListener("click", async () => {
+        const input = requestInput.value.trim();
+        const selectedFields = getSelectedFields();
+        const generateButton = $("#generate-btn");
+
+        if (!input) {
             showToast(
                 currentMode === "curl"
                     ? "Please paste a cURL request first."
@@ -518,17 +516,108 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        if (getSelectedFields().length === 0) {
-            showToast(
-                "Please select at least one field.",
-                "error"
-            );
+        if (selectedFields.length === 0) {
+            showToast("Please select at least one field.", "error");
             return;
         }
 
-        showToast(
-            "Frontend is ready. Backend connection is the next step."
+        const originalButtonHTML = generateButton.innerHTML;
+        const formData = new FormData();
+
+        formData.append("input", input);
+        formData.append("mode", currentMode);
+        formData.append("category", categorySelect.value);
+        formData.append(
+            "required_fields",
+            JSON.stringify(selectedFields)
         );
+        formData.append("response_type", responseType.value);
+
+        const imageFile = referenceImageInput.files[0];
+
+        if (imageFile) {
+            formData.append("reference_image", imageFile);
+        }
+
+        try {
+            generateButton.disabled = true;
+            generateButton.textContent = "Generating...";
+
+            showToast("Generating parser. Please wait...");
+
+            const response = await fetch("/api/generate", {
+                method: "POST",
+                body: formData
+            });
+
+            const contentType =
+                response.headers.get("content-type") || "";
+
+            let result;
+
+            if (contentType.includes("application/json")) {
+                result = await response.json();
+            } else {
+                const text = await response.text();
+
+                throw new Error(
+                    text || `Server returned HTTP ${response.status}`
+                );
+            }
+
+            if (!response.ok || result.success === false) {
+                throw new Error(
+                    result.error ||
+                    result.message ||
+                    `Request failed with status ${response.status}`
+                );
+            }
+
+            const pythonCode =
+                result.python_code ??
+                result.parser_code ??
+                result.code ??
+                result.generated_code ??
+                "";
+
+            const jsonOutput =
+                result.json_output ??
+                result.output_json ??
+                result.data ??
+                result.parsed_data ??
+                {};
+
+            if (
+                typeof pythonCode !== "string" ||
+                !pythonCode.trim()
+            ) {
+                console.error("Unexpected backend response:", result);
+
+                throw new Error(
+                    "Backend responded, but no Python code was returned. Check the /api/generate response format."
+                );
+            }
+
+            $("#code-output").textContent = pythonCode;
+
+            $("#json-output").textContent =
+                typeof jsonOutput === "string"
+                    ? jsonOutput
+                    : JSON.stringify(jsonOutput, null, 2);
+
+            showToast("Parser generated successfully!");
+
+        } catch (error) {
+            console.error("Parser generation error:", error);
+
+            showToast(
+                error.message || "Unable to connect to the backend.",
+                "error"
+            );
+        } finally {
+            generateButton.disabled = false;
+            generateButton.innerHTML = originalButtonHTML;
+        }
     });
 
     // ---------- INITIALIZE ----------
