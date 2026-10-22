@@ -294,10 +294,8 @@ document.addEventListener("DOMContentLoaded", () => {
         .forEach((button) => {
             button.addEventListener("click", () => {
                 currentMode = button.dataset.mode;
-                // Clear input when switching between modes
-                requestInput.value = "";
 
-                // Clear reference image when switching modes
+                requestInput.value = "";
                 referenceImageInput.value = "";
 
                 if (imagePreviewUrl) {
@@ -309,21 +307,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 $("#image-preview").hidden = true;
                 $("#upload-area").hidden = false;
                 $("#upload-title").textContent = "Upload a screenshot";
-
-                // Reset character count
-                updateCharacterCount();
-
-                // Reset generated output
-                $("#results-section").hidden = true;
-                $("#code-output").textContent =
-                    "# Your generated Python parser will appear here.\n\n" +
-                    "def parse_data(data):\n" +
-                    "    # Your extraction logic will be generated here.\n" +
-                    "    results = []\n" +
-                    "    return results";
-
-                $("#json-output").textContent =
-                    '[\n  {\n    "message": "Your extracted data will appear here"\n  }\n]';
 
                 document
                     .querySelectorAll(".nav-item[data-mode]")
@@ -337,9 +320,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 const modeSettings = settings[currentMode];
 
                 $("#page-title").textContent = modeSettings.title;
-                $("#breadcrumb-title").textContent =
-                    modeSettings.title;
-
                 $("#page-description").textContent =
                     modeSettings.description;
 
@@ -601,6 +581,19 @@ document.addEventListener("DOMContentLoaded", () => {
             responseType.value
         );
 
+        // ---------- ADDITIONAL PROMPT ----------
+        // Read the user's optional instructions from the textarea.
+        const additionalPrompt = $("#parser-prompt");
+
+        formData.append(
+            "prompt",
+            additionalPrompt
+                ? additionalPrompt.value.trim()
+                : ""
+        );
+
+        // ---------- REFERENCE IMAGE ----------
+
         const imageFile = referenceImageInput.files[0];
 
         if (imageFile) {
@@ -703,6 +696,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // ---------- INITIALIZE ----------
 
     $("#results-section").hidden = true;
+
     renderFields();
     updateCharacterCount();
 

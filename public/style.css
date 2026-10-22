@@ -1465,3 +1465,41 @@ input[type="checkbox"] {
     align-items: center;
     gap: 0;
 }
+
+/* Additional Prompt Section */
+.prompt-section {
+    margin-top: 18px;
+    padding-top: 15px;
+    border-top: 1px solid #203847;
+}
+
+.prompt-section > label {
+    display: block;
+    margin-bottom: 10px;
+    font-size: 12px;
+    color: #dcecf5;
+}
+
+.prompt-section > label span {
+    color: #8aa5b8;
+}
+
+.prompt-textarea {
+    display: block;
+    width: 100%;
+    min-height: 120px;
+    padding: 12px;
+    box-sizing: border-box;
+    resize: vertical;
+    font-family: inherit;
+    font-size: 12px;
+    line-height: 1.7;
+    white-space: pre-wrap;
+}
+
+.prompt-hint {
+    margin-top: 7px;
+    color: #7899af;
+    font-size: 10px;
+    line-height: 1.5;
+}
