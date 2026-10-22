@@ -1447,3 +1447,21 @@ input[type="checkbox"] {
         max-height: 350px;
     }
 }
+
+
+
+
+
+
+/* Remove icons from cURL Input and HTML Response headings */
+#input-symbol,
+.panel-heading .heading-symbol {
+    display: none !important;
+}
+
+/* Keep heading text visible */
+.panel-heading h3 {
+    display: flex;
+    align-items: center;
+    gap: 0;
+}
