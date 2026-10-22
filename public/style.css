@@ -1709,3 +1709,24 @@ input[type="checkbox"] {
         max-height: 160px !important;
     }
 }
+
+/* Hide image previews but keep selected images in JavaScript */
+#image-list {
+    display: none !important;
+}
+
+/* Keep the Reference Images panel fixed */
+.action-panel {
+    height: 420px !important;
+    min-height: 420px !important;
+    max-height: 420px !important;
+    overflow: hidden;
+}
+
+/* Keep the upload box unchanged */
+.upload-area-large {
+    flex: 0 0 160px !important;
+    height: 160px !important;
+    min-height: 160px !important;
+    max-height: 160px !important;
+}
