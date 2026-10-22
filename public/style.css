@@ -1350,47 +1350,46 @@ input[type="checkbox"] {
         font-size: 9px;
     }
 }
-
-/* Generate Parser button - right side alignment */
+/* Generate button below the input panel */
 .generate-action-row {
     display: flex;
     flex-direction: column;
-    align-items: flex-end;
-    width: 100%;
-    margin-top: 12px;
+    align-items: flex-start;
+    width: calc((100% - 30px) * 0.38);
+    margin-top: 8px;
     margin-bottom: 16px;
     box-sizing: border-box;
 }
 
 .generate-action-row .button-generate {
-    width: 280px;
-    max-width: 100%;
-    margin-left: auto;
+    width: 100%;
+    max-width: 280px;
+    margin: 0;
     display: flex;
     align-items: center;
     justify-content: space-between;
 }
 
 .generate-action-row .generate-note {
-    width: 280px;
-    max-width: 100%;
+    width: 100%;
+    max-width: 280px;
     text-align: center;
     margin-top: 8px;
 }
 
-/* Hide results until generation succeeds */
+/* Keep results hidden until generation succeeds */
 #results-section[hidden] {
     display: none !important;
 }
 
-/* Responsive layout */
 @media (max-width: 768px) {
     .generate-action-row {
-        align-items: stretch;
+        width: 100%;
     }
 
     .generate-action-row .button-generate,
     .generate-action-row .generate-note {
         width: 100%;
+        max-width: 100%;
     }
 }
