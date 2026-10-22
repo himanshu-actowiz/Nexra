@@ -1350,6 +1350,8 @@ input[type="checkbox"] {
         font-size: 9px;
     }
 }
+
+/* Generate Parser button - right side alignment */
 .generate-action-row {
     display: flex;
     flex-direction: column;
@@ -1357,15 +1359,38 @@ input[type="checkbox"] {
     width: 100%;
     margin-top: 12px;
     margin-bottom: 16px;
+    box-sizing: border-box;
 }
 
 .generate-action-row .button-generate {
     width: 280px;
     max-width: 100%;
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
 }
 
 .generate-action-row .generate-note {
     width: 280px;
     max-width: 100%;
     text-align: center;
+    margin-top: 8px;
+}
+
+/* Hide results until generation succeeds */
+#results-section[hidden] {
+    display: none !important;
+}
+
+/* Responsive layout */
+@media (max-width: 768px) {
+    .generate-action-row {
+        align-items: stretch;
+    }
+
+    .generate-action-row .button-generate,
+    .generate-action-row .generate-note {
+        width: 100%;
+    }
 }
