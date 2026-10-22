@@ -116,10 +116,24 @@ def generate_parser(
     # --------------------------------------------------------
     # Validate Required Fields
     # --------------------------------------------------------
-    if not required_fields or not required_fields.strip():
-        raise ValueError(
-            "Required fields are required."
+    if not required_fields:
+        raise ValueError("Please select at least one required field.")
+
+    if isinstance(required_fields, list):
+        required_fields = ", ".join(
+            str(field).strip()
+            for field in required_fields
+            if str(field).strip()
         )
+    elif isinstance(required_fields, str):
+        required_fields = required_fields.strip()
+    else:
+        raise ValueError(
+            "required_fields must be a list or string."
+        )
+
+    if not required_fields:
+        raise ValueError("Required fields cannot be empty.")
     # --------------------------------------------------------
     # Get Gemini API Key Pool
     # --------------------------------------------------------
