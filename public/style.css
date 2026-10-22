@@ -1710,23 +1710,85 @@ input[type="checkbox"] {
     }
 }
 
-/* Hide image previews but keep selected images in JavaScript */
+/* =========================================
+   FIX: Reference Images Panel Alignment
+   ========================================= */
+
+/* Keep all three panels aligned */
+.workspace-grid {
+    display: grid;
+    align-items: stretch;
+}
+
+/* Reference Images panel */
+.action-panel {
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+
+    display: flex;
+    flex-direction: column;
+    align-self: stretch;
+
+    box-sizing: border-box;
+    padding-bottom: 16px;
+    overflow: hidden;
+}
+
+/* Keep heading spacing consistent */
+.action-panel .panel-heading {
+    flex: 0 0 auto;
+    margin-bottom: 14px;
+}
+
+/* Upload box: compact and aligned */
+.action-panel .upload-area-large {
+    flex: 0 0 180px !important;
+
+    width: 100%;
+    height: 180px !important;
+    min-height: 180px !important;
+    max-height: 180px !important;
+
+    box-sizing: border-box;
+    padding: 14px 10px;
+    gap: 10px;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+    overflow: hidden;
+}
+
+/* Hide image thumbnails but retain selected files */
 #image-list {
     display: none !important;
 }
 
-/* Keep the Reference Images panel fixed */
+/* Prevent the Reference Images panel from stretching */
 .action-panel {
-    height: 420px !important;
-    min-height: 420px !important;
-    max-height: 420px !important;
-    overflow: hidden;
+    justify-content: flex-start;
 }
 
-/* Keep the upload box unchanged */
-.upload-area-large {
-    flex: 0 0 160px !important;
-    height: 160px !important;
-    min-height: 160px !important;
-    max-height: 160px !important;
+/* Keep button inside the upload box */
+.action-panel .add-image-button {
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+/* Responsive adjustment */
+@media (max-width: 900px) {
+    .action-panel {
+        height: auto !important;
+        min-height: 0 !important;
+    }
+
+    .action-panel .upload-area-large {
+        flex-basis: 180px !important;
+        height: 180px !important;
+        min-height: 180px !important;
+        max-height: 180px !important;
+    }
 }
