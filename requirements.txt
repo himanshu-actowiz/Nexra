@@ -1,4 +1,6 @@
 streamlit
+Flask
+gunicorn
 requests
 pandas
 openpyxl
