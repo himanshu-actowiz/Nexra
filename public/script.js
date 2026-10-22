@@ -1,4 +1,3 @@
-
 document.addEventListener("DOMContentLoaded", () => {
     const $ = (selector) => document.querySelector(selector);
 
@@ -149,6 +148,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     customFields = customFields.filter(
                         (item) => item !== field
                     );
+
                     label.remove();
                 }
 
@@ -183,7 +183,11 @@ document.addEventListener("DOMContentLoaded", () => {
         const field = customFieldInput.value.trim();
 
         if (!field) {
-            showToast("Please enter a custom field name.", "error");
+            showToast(
+                "Please enter a custom field name.",
+                "error"
+            );
+
             customFieldInput.focus();
             return;
         }
@@ -193,6 +197,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 "Use letters, numbers and underscores. Start with a letter or underscore.",
                 "error"
             );
+
             return;
         }
 
@@ -304,6 +309,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 $("#page-title").textContent = modeSettings.title;
                 $("#breadcrumb-title").textContent =
                     modeSettings.title;
+
                 $("#page-description").textContent =
                     modeSettings.description;
 
@@ -333,6 +339,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
 
                 updateCharacterCount();
+
                 showToast(`${modeSettings.title} selected.`);
             });
         });
@@ -351,8 +358,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     $("#clear-input").addEventListener("click", () => {
         requestInput.value = "";
+
         updateCharacterCount();
         requestInput.focus();
+
         showToast("Input cleared.");
     });
 
@@ -369,19 +378,23 @@ document.addEventListener("DOMContentLoaded", () => {
             )
         ) {
             referenceImageInput.value = "";
+
             showToast(
                 "Please select a PNG, JPG or WebP image.",
                 "error"
             );
+
             return;
         }
 
         if (file.size > 5 * 1024 * 1024) {
             referenceImageInput.value = "";
+
             showToast(
                 "Image size must be 5 MB or less.",
                 "error"
             );
+
             return;
         }
 
@@ -420,12 +433,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
     async function copyText(text, label) {
         if (!text.trim()) {
-            showToast(`No ${label} available to copy.`, "error");
+            showToast(
+                `No ${label} available to copy.`,
+                "error"
+            );
+
             return;
         }
 
         try {
             await navigator.clipboard.writeText(text);
+
             showToast(`${label} copied to clipboard.`);
         } catch (error) {
             console.error("Clipboard error:", error);
@@ -439,7 +457,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function downloadText(text, filename, mime) {
         if (!text.trim()) {
-            showToast("There is no content to download.", "error");
+            showToast(
+                "There is no content to download.",
+                "error"
+            );
+
             return;
         }
 
@@ -448,6 +470,7 @@ document.addEventListener("DOMContentLoaded", () => {
         );
 
         const link = document.createElement("a");
+
         link.href = url;
         link.download = filename;
 
@@ -461,11 +484,17 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     $("#copy-code").addEventListener("click", () => {
-        copyText($("#code-output").innerText, "Python code");
+        copyText(
+            $("#code-output").innerText,
+            "Python code"
+        );
     });
 
     $("#copy-json").addEventListener("click", () => {
-        copyText($("#json-output").innerText, "JSON");
+        copyText(
+            $("#json-output").innerText,
+            "JSON"
+        );
     });
 
     $("#download-code").addEventListener("click", () => {
@@ -517,7 +546,11 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         if (selectedFields.length === 0) {
-            showToast("Please select at least one field.", "error");
+            showToast(
+                "Please select at least one field.",
+                "error"
+            );
+
             return;
         }
 
@@ -527,11 +560,16 @@ document.addEventListener("DOMContentLoaded", () => {
         formData.append("input", input);
         formData.append("mode", currentMode);
         formData.append("category", categorySelect.value);
+
         formData.append(
             "required_fields",
             JSON.stringify(selectedFields)
         );
-        formData.append("response_type", responseType.value);
+
+        formData.append(
+            "response_type",
+            responseType.value
+        );
 
         const imageFile = referenceImageInput.files[0];
 
@@ -558,10 +596,11 @@ document.addEventListener("DOMContentLoaded", () => {
             if (contentType.includes("application/json")) {
                 result = await response.json();
             } else {
-                const text = await response.text();
+                const responseText = await response.text();
 
                 throw new Error(
-                    text || `Server returned HTTP ${response.status}`
+                    responseText ||
+                    `Server returned HTTP ${response.status}`
                 );
             }
 
@@ -583,6 +622,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const jsonOutput =
                 result.json_output ??
                 result.output_json ??
+                result.extracted_data ??
                 result.data ??
                 result.parsed_data ??
                 {};
@@ -591,7 +631,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 typeof pythonCode !== "string" ||
                 !pythonCode.trim()
             ) {
-                console.error("Unexpected backend response:", result);
+                console.error(
+                    "Unexpected backend response:",
+                    result
+                );
 
                 throw new Error(
                     "Backend responded, but no Python code was returned. Check the /api/generate response format."
@@ -608,12 +651,17 @@ document.addEventListener("DOMContentLoaded", () => {
             showToast("Parser generated successfully!");
 
         } catch (error) {
-            console.error("Parser generation error:", error);
+            console.error(
+                "Parser generation error:",
+                error
+            );
 
             showToast(
-                error.message || "Unable to connect to the backend.",
+                error.message ||
+                "Unable to connect to the backend.",
                 "error"
             );
+
         } finally {
             generateButton.disabled = false;
             generateButton.innerHTML = originalButtonHTML;
