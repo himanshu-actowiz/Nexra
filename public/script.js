@@ -1,7 +1,9 @@
 document.addEventListener("DOMContentLoaded", () => {
     const $ = (selector) => document.querySelector(selector);
 
-    // ---------- DOM ELEMENTS ----------
+    // =========================================
+    // DOM ELEMENTS
+    // =========================================
 
     const requestInput = $("#request-input");
     const categorySelect = $("#category");
@@ -15,14 +17,31 @@ document.addEventListener("DOMContentLoaded", () => {
     const toast = $("#toast");
 
     let currentMode = "curl";
-    let customFields = [];
     let toastTimer;
     let imageIdCounter = 0;
-
-    // Store all selected reference images.
     let selectedImages = [];
 
-    // ---------- FIELD OPTIONS ----------
+    // =========================================
+    // FIX: SEPARATE STATE FOR BOTH MODES
+    // =========================================
+
+    const modeState = {
+        curl: {
+            selectedFields: new Set(),
+            customFields: []
+        },
+        response: {
+            selectedFields: new Set(),
+            customFields: []
+        }
+    };
+
+    // Keep compatibility with the rest of this script.
+    let customFields = modeState.curl.customFields;
+
+    // =========================================
+    // FIELD OPTIONS
+    // =========================================
 
     const FIELD_OPTIONS = {
         Ecommerce: [
@@ -78,7 +97,9 @@ document.addEventListener("DOMContentLoaded", () => {
         ]
     };
 
-    // ---------- TOAST MESSAGE ----------
+    // =========================================
+    // TOAST MESSAGE
+    // =========================================
 
     function showToast(message, type = "success") {
         if (!toast) return;
@@ -94,7 +115,9 @@ document.addEventListener("DOMContentLoaded", () => {
         }, 3200);
     }
 
-    // ---------- OUTPUT HELPERS ----------
+    // =========================================
+    // OUTPUT HELPERS
+    // =========================================
 
     function setOutputText(selector, value) {
         const element = $(selector);
@@ -150,19 +173,37 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // ---------- FIELD SELECTION ----------
+    // =========================================
+    // FIELD SELECTION HELPERS
+    // =========================================
+
+    function getCurrentModeState() {
+        return modeState[currentMode];
+    }
+
+    function saveCurrentFieldSelections() {
+        const state = getCurrentModeState();
+
+        if (!fieldsContainer) return;
+
+        state.selectedFields = new Set(
+            [
+                ...fieldsContainer.querySelectorAll(
+                    'input[type="checkbox"]:checked'
+                )
+            ].map((checkbox) => checkbox.value)
+        );
+    }
 
     function getSelectedFields() {
-        const selected = [
-            ...fieldsContainer.querySelectorAll(
-                'input[type="checkbox"]:checked'
-            )
-        ].map((checkbox) => checkbox.value);
+        saveCurrentFieldSelections();
 
-        return [...new Set([...selected, ...customFields])];
+        return [...getCurrentModeState().selectedFields];
     }
 
     function updateSelectAllState() {
+        if (!fieldsContainer || !selectAllCheckbox) return;
+
         const boxes = [
             ...fieldsContainer.querySelectorAll(
                 'input[type="checkbox"]'
@@ -180,52 +221,59 @@ document.addEventListener("DOMContentLoaded", () => {
             checkedCount > 0 && checkedCount < boxes.length;
     }
 
+    // =========================================
+    // RENDER FIELDS
+    // Preserves selection for the active mode.
+    // =========================================
+
     function renderFields() {
+        if (!fieldsContainer) return;
+
+        const state = getCurrentModeState();
+
+        // Preserve current selections before rebuilding the DOM.
+        saveCurrentFieldSelections();
+
         fieldsContainer.replaceChildren();
 
         const fields =
             FIELD_OPTIONS[categorySelect.value] || FIELD_OPTIONS.Other;
 
-        fields.forEach((field) => {
+        function createFieldCheckbox(field, isCustom = false) {
             const label = document.createElement("label");
-            label.className = "field-option";
+
+            label.className = isCustom
+                ? "field-option custom-field"
+                : "field-option";
 
             const checkbox = document.createElement("input");
+
             checkbox.type = "checkbox";
             checkbox.value = field;
             checkbox.name = "required_fields";
-            checkbox.checked = false;
 
-            checkbox.addEventListener(
-                "change",
-                updateSelectAllState
-            );
-
-            const text = document.createElement("span");
-            text.textContent = field;
-
-            label.append(checkbox, text);
-            fieldsContainer.append(label);
-        });
-
-        customFields.forEach((field) => {
-            const label = document.createElement("label");
-            label.className = "field-option custom-field";
-
-            const checkbox = document.createElement("input");
-            checkbox.type = "checkbox";
-            checkbox.value = field;
-            checkbox.name = "required_fields";
-            checkbox.checked = true;
+            // Restore the selection from THIS mode only.
+            checkbox.checked = state.selectedFields.has(field);
 
             checkbox.addEventListener("change", () => {
-                if (!checkbox.checked) {
-                    customFields = customFields.filter(
-                        (item) => item !== field
-                    );
+                if (checkbox.checked) {
+                    state.selectedFields.add(field);
+                } else {
+                    state.selectedFields.delete(field);
 
-                    renderFields();
-                    return;
+                    // Unchecking a custom field removes it
+                    // from this mode only.
+                    if (isCustom) {
+                        state.customFields =
+                            state.customFields.filter(
+                                (item) => item !== field
+                            );
+
+                        customFields = state.customFields;
+
+                        renderFields();
+                        return;
+                    }
                 }
 
                 updateSelectAllState();
@@ -236,24 +284,51 @@ document.addEventListener("DOMContentLoaded", () => {
 
             label.append(checkbox, text);
             fieldsContainer.append(label);
+        }
+
+        fields.forEach((field) => {
+            createFieldCheckbox(field, false);
         });
+
+        state.customFields.forEach((field) => {
+            createFieldCheckbox(field, true);
+        });
+
+        customFields = state.customFields;
 
         updateSelectAllState();
     }
 
-    categorySelect.addEventListener("change", renderFields);
+    if (categorySelect) {
+        categorySelect.addEventListener("change", () => {
+            // Only re-render fields for the current mode.
+            renderFields();
+        });
+    }
 
-    selectAllCheckbox.addEventListener("change", () => {
-        fieldsContainer
-            .querySelectorAll('input[type="checkbox"]')
-            .forEach((checkbox) => {
-                checkbox.checked = selectAllCheckbox.checked;
-            });
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener("change", () => {
+            const state = getCurrentModeState();
 
-        updateSelectAllState();
-    });
+            fieldsContainer
+                .querySelectorAll('input[type="checkbox"]')
+                .forEach((checkbox) => {
+                    checkbox.checked = selectAllCheckbox.checked;
 
-    // ---------- CUSTOM FIELDS ----------
+                    if (checkbox.checked) {
+                        state.selectedFields.add(checkbox.value);
+                    } else {
+                        state.selectedFields.delete(checkbox.value);
+                    }
+                });
+
+            updateSelectAllState();
+        });
+    }
+
+    // =========================================
+    // CUSTOM FIELDS
+    // =========================================
 
     function addCustomField() {
         const field = customFieldInput.value.trim();
@@ -277,34 +352,51 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        const exists = [
-            ...fieldsContainer.querySelectorAll(
-                'input[type="checkbox"]'
-            )
-        ].some((checkbox) => checkbox.value === field);
+        const state = getCurrentModeState();
 
-        if (exists || customFields.includes(field)) {
+        const standardFields =
+            FIELD_OPTIONS[categorySelect.value] || FIELD_OPTIONS.Other;
+
+        if (
+            standardFields.includes(field) ||
+            state.customFields.includes(field)
+        ) {
             showToast("This field already exists.", "error");
             return;
         }
 
-        customFields.push(field);
+        // Add only to the active mode.
+        state.customFields.push(field);
+
+        // Newly added custom field is selected by default.
+        state.selectedFields.add(field);
+
+        customFields = state.customFields;
         customFieldInput.value = "";
 
         renderFields();
+
         showToast(`Custom field "${field}" added.`);
     }
 
-    $("#add-field").addEventListener("click", addCustomField);
+    const addFieldButton = $("#add-field");
 
-    customFieldInput.addEventListener("keydown", (event) => {
-        if (event.key === "Enter") {
-            event.preventDefault();
-            addCustomField();
-        }
-    });
+    if (addFieldButton) {
+        addFieldButton.addEventListener("click", addCustomField);
+    }
 
-    // ---------- MODE SETTINGS ----------
+    if (customFieldInput) {
+        customFieldInput.addEventListener("keydown", (event) => {
+            if (event.key === "Enter") {
+                event.preventDefault();
+                addCustomField();
+            }
+        });
+    }
+
+    // =========================================
+    // MODE SETTINGS
+    // =========================================
 
     const settings = {
         curl: {
@@ -333,18 +425,26 @@ document.addEventListener("DOMContentLoaded", () => {
     const responseTypeRow = $("#response-type-row");
     const responseType = $("#response-type");
 
-    // ---------- CHARACTER COUNT ----------
+    // =========================================
+    // CHARACTER COUNT
+    // =========================================
 
     function updateCharacterCount() {
+        if (!requestInput) return;
+
         setOutputText(
             "#char-count",
             `${requestInput.value.length.toLocaleString()} characters`
         );
     }
 
-    // ---------- JSON / HTML INPUT ----------
+    // =========================================
+    // JSON / HTML INPUT
+    // =========================================
 
     function updateResponseInput() {
+        if (!responseType || !requestInput) return;
+
         const type = responseType.value;
         const isJson = type === "json";
 
@@ -374,7 +474,9 @@ document.addEventListener("DOMContentLoaded", () => {
         updateCharacterCount();
     }
 
-    // ---------- MULTIPLE REFERENCE IMAGES ----------
+    // =========================================
+    // MULTIPLE REFERENCE IMAGES
+    // =========================================
 
     function clearSelectedImages() {
         selectedImages.forEach((item) => {
@@ -484,9 +586,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         item.file.lastModified === file.lastModified
                 );
 
-                if (alreadyAdded) {
-                    return;
-                }
+                if (alreadyAdded) return;
 
                 selectedImages.push({
                     id: ++imageIdCounter,
@@ -510,14 +610,23 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // ---------- SIDEBAR MODE SWITCHING ----------
+    // =========================================
+    // SIDEBAR MODE SWITCHING
+    // =========================================
 
     document
         .querySelectorAll(".nav-item[data-mode]")
         .forEach((button) => {
             button.addEventListener("click", () => {
+                // Save checkbox state of the mode being left.
+                saveCurrentFieldSelections();
+
                 currentMode = button.dataset.mode;
 
+                // Switch custom fields to the new mode.
+                customFields = modeState[currentMode].customFields;
+
+                // Clear mode-specific input content.
                 requestInput.value = "";
 
                 clearSelectedImages();
@@ -537,7 +646,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 const modeSettings = settings[currentMode];
 
+                setOutputText("#breadcrumb-title", modeSettings.title);
                 setOutputText("#page-title", modeSettings.title);
+
                 setOutputText(
                     "#page-description",
                     modeSettings.description
@@ -580,6 +691,9 @@ document.addEventListener("DOMContentLoaded", () => {
                     updateResponseInput();
                 }
 
+                // Render only this mode's fields and restore its selections.
+                renderFields();
+
                 updateCharacterCount();
 
                 showToast(`${modeSettings.title} selected.`);
@@ -593,23 +707,33 @@ document.addEventListener("DOMContentLoaded", () => {
         );
     }
 
-    requestInput.addEventListener(
-        "input",
-        updateCharacterCount
-    );
+    if (requestInput) {
+        requestInput.addEventListener(
+            "input",
+            updateCharacterCount
+        );
+    }
 
-    // ---------- CLEAR INPUT ----------
+    // =========================================
+    // CLEAR INPUT
+    // =========================================
 
-    $("#clear-input").addEventListener("click", () => {
-        requestInput.value = "";
+    const clearInputButton = $("#clear-input");
 
-        updateCharacterCount();
-        requestInput.focus();
+    if (clearInputButton) {
+        clearInputButton.addEventListener("click", () => {
+            requestInput.value = "";
 
-        showToast("Input cleared.");
-    });
+            updateCharacterCount();
+            requestInput.focus();
 
-    // ---------- COPY / DOWNLOAD ----------
+            showToast("Input cleared.");
+        });
+    }
+
+    // =========================================
+    // COPY / DOWNLOAD
+    // =========================================
 
     async function copyText(text, label) {
         if (!text.trim()) {
@@ -662,50 +786,65 @@ document.addEventListener("DOMContentLoaded", () => {
         showToast(`${filename} downloaded.`);
     }
 
-    $("#copy-code").addEventListener("click", () => {
-        copyText(
-            $("#code-output").innerText,
-            "Python code"
-        );
-    });
+    const copyCodeButton = $("#copy-code");
+    const copyJsonButton = $("#copy-json");
+    const downloadCodeButton = $("#download-code");
+    const downloadJsonButton = $("#download-json");
 
-    $("#copy-json").addEventListener("click", () => {
-        copyText(
-            $("#json-output").innerText,
-            "JSON"
-        );
-    });
-
-    $("#download-code").addEventListener("click", () => {
-        downloadText(
-            $("#code-output").innerText,
-            "nexra_parser.py",
-            "text/x-python;charset=utf-8"
-        );
-    });
-
-    $("#download-json").addEventListener("click", () => {
-        try {
-            const json = JSON.stringify(
-                JSON.parse($("#json-output").innerText),
-                null,
-                2
+    if (copyCodeButton) {
+        copyCodeButton.addEventListener("click", () => {
+            copyText(
+                $("#code-output").innerText,
+                "Python code"
             );
+        });
+    }
 
+    if (copyJsonButton) {
+        copyJsonButton.addEventListener("click", () => {
+            copyText(
+                $("#json-output").innerText,
+                "JSON"
+            );
+        });
+    }
+
+    if (downloadCodeButton) {
+        downloadCodeButton.addEventListener("click", () => {
             downloadText(
-                json,
-                "nexra_output.json",
-                "application/json;charset=utf-8"
+                $("#code-output").innerText,
+                "nexra_parser.py",
+                "text/x-python;charset=utf-8"
             );
-        } catch (error) {
-            showToast(
-                "The displayed output is not valid JSON yet.",
-                "error"
-            );
-        }
-    });
+        });
+    }
 
-    // ---------- GENERATE PARSER ----------
+    if (downloadJsonButton) {
+        downloadJsonButton.addEventListener("click", () => {
+            try {
+                const json = JSON.stringify(
+                    JSON.parse($("#json-output").innerText),
+                    null,
+                    2
+                );
+
+                downloadText(
+                    json,
+                    "nexra_output.json",
+                    "application/json;charset=utf-8"
+                );
+            } catch (error) {
+                showToast(
+                    "The displayed output is not valid JSON yet.",
+                    "error"
+                );
+            }
+        });
+    }
+
+    // =========================================
+    // GENERATE PARSER
+    // =========================================
 
     async function generateParser() {
         const input = requestInput.value.trim();
@@ -748,7 +887,7 @@ document.addEventListener("DOMContentLoaded", () => {
             responseType ? responseType.value : "json"
         );
 
-        // Send Additional Prompt.
+        // Additional Prompt.
         formData.append(
             "prompt",
             additionalPromptInput
@@ -756,14 +895,14 @@ document.addEventListener("DOMContentLoaded", () => {
                 : ""
         );
 
-        // Send custom fields separately if the backend uses them.
+        // Only the active mode's custom fields are sent.
         formData.append(
             "custom_fields",
-            JSON.stringify(customFields)
+            JSON.stringify(modeState[currentMode].customFields)
         );
 
         // Send the first image under the existing backend field name.
-        // Send additional images under "reference_images".
+        // Send remaining images under "reference_images".
         selectedImages.forEach((item, index) => {
             if (index === 0) {
                 formData.append(
@@ -919,12 +1058,18 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    $("#generate-btn").addEventListener(
-        "click",
-        generateParser
-    );
+    const generateButton = $("#generate-btn");
 
-    // ---------- INITIALIZE ----------
+    if (generateButton) {
+        generateButton.addEventListener(
+            "click",
+            generateParser
+        );
+    }
+
+    // =========================================
+    // INITIALIZE
+    // =========================================
 
     const resultsSection = $("#results-section");
 
