@@ -1350,46 +1350,100 @@ input[type="checkbox"] {
         font-size: 9px;
     }
 }
-/* Generate button below the input panel */
+/* Generate button below the input panel, on the left */
 .generate-action-row {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    width: calc((100% - 30px) * 0.38);
-    margin-top: 8px;
-    margin-bottom: 16px;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+
+    width: 38% !important;
+    margin: 8px 0 16px 0 !important;
+    padding: 0 !important;
+
     box-sizing: border-box;
 }
 
 .generate-action-row .button-generate {
-    width: 100%;
-    max-width: 280px;
-    margin: 0;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+    width: 100% !important;
+    max-width: 280px !important;
+    margin: 0 !important;
 }
 
 .generate-action-row .generate-note {
-    width: 100%;
-    max-width: 280px;
-    text-align: center;
-    margin-top: 8px;
+    width: 100% !important;
+    max-width: 280px !important;
+    text-align: center !important;
+    margin: 8px 0 0 !important;
 }
 
-/* Keep results hidden until generation succeeds */
+/* Keep results hidden until successful generation */
 #results-section[hidden] {
     display: none !important;
 }
 
 @media (max-width: 768px) {
     .generate-action-row {
-        width: 100%;
+        width: 100% !important;
     }
 
     .generate-action-row .button-generate,
     .generate-action-row .generate-note {
-        width: 100%;
-        max-width: 100%;
+        max-width: 100% !important;
+    }
+}
+
+/* Keep result boxes at a fixed height */
+.results-grid .code-output-wrapper {
+    height: 450px;
+    max-height: 450px;
+    overflow-y: auto;
+    overflow-x: auto;
+    min-height: 0;
+    box-sizing: border-box;
+}
+
+/* Keep long code and JSON inside their boxes */
+.results-grid .output-code {
+    height: 100%;
+    max-height: 100%;
+    overflow: auto;
+    white-space: pre;
+    overflow-wrap: normal;
+    word-break: normal;
+    box-sizing: border-box;
+    margin: 0;
+}
+
+/* Keep long lines scrollable horizontally */
+.results-grid .output-code code {
+    white-space: pre;
+}
+
+/* Keep result panels from growing with content */
+.results-grid .result-panel {
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* Scrollbar styling */
+.results-grid .code-output-wrapper::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.results-grid .code-output-wrapper::-webkit-scrollbar-thumb {
+    background: #294454;
+    border-radius: 8px;
+}
+
+.results-grid .code-output-wrapper::-webkit-scrollbar-track {
+    background: #07111b;
+}
+
+@media (max-width: 768px) {
+    .results-grid .code-output-wrapper {
+        height: 350px;
+        max-height: 350px;
     }
 }
