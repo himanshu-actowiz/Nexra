@@ -164,16 +164,18 @@ def generate_parser(
     # Gemini Prompt
     # --------------------------------------------------------
    
+    
     prompt = f"""
     You are a senior Python web scraping engineer specializing in
-    dynamic, reliable, production-quality HTML and JSON parsers.
+    accurate, robust, dynamic, production-quality HTML and JSON parsing.
 
-    Your task is to analyze the supplied website response and
-    optional reference screenshot, then generate ONE complete,
-    executable Python function named parse_data(data).
+    Your task is to analyze the supplied website response and optional
+    reference screenshots, then generate ONE complete, executable Python
+    function named parse_data(data).
 
-    The parser must extract every requested field accurately,
-    handle multiple records dynamically, and avoid brittle selectors.
+    The parser must extract all requested fields, process all relevant
+    records, inspect nested data thoroughly, normalize values only when
+    supported by the source, and avoid fabricating missing information.
 
     ============================================================
     INPUT INFORMATION
@@ -188,299 +190,541 @@ def generate_parser(
     Website Response:
     {response_data}
 
-    A reference screenshot may also be attached to this request.
-    If attached, inspect the actual image carefully.
+    Optional reference screenshots may be attached.
+    Inspect all attached screenshots when available.
 
     ============================================================
-    1. REFERENCE IMAGE ANALYSIS
+    1. SOURCE OF TRUTH AND EXTRACTION STRATEGY
     ============================================================
 
-    If a screenshot is attached:
-
-    1. Visually inspect the entire screenshot.
-    2. Identify all requested fields visible in the screenshot.
-    3. Understand the relationship between labels and values.
-    4. Identify the relevant record or page section.
-    5. Use the screenshot to understand what the user expects
-    the parser to extract.
-    6. Compare the visible fields with the supplied HTML, JSON,
-    embedded JSON, or other response data.
-    7. Identify the actual HTML elements, attributes, links,
-    text nodes, JSON keys, and nested structures that contain
-    the corresponding values.
-    8. Prefer the actual underlying data over visible presentation
-    text when both contain the same information.
-    9. Never hardcode values taken from the screenshot.
-    10. If a requested value is visible in the screenshot but
-        unavailable in the supplied response, return None for
-        that field.
-    11. Do not assume that an image alone proves a value exists
-        in the response.
-    12. Do not invent selectors or data based on appearance alone.
-
-    The screenshot is a reference for identifying fields.
-    The supplied response is the source for extracted values.
-
-    ============================================================
-    2. INSPECT THE ACTUAL RESPONSE
-    ============================================================
-
-    Before generating the parser, reason carefully about the
-    actual structure of the supplied response.
+    The supplied response is the primary source of extracted data.
+    Screenshots are visual references for identifying fields and
+    understanding the expected output.
 
     The response may contain:
-
-    - HTML
-    - JSON
+    - HTML documents and fragments
+    - JSON strings
+    - Already parsed dictionaries and lists
     - JSON embedded in HTML script tags
-    - Structured state objects
-    - Multiple records
-    - Nested objects and arrays
-    - Links and attributes containing useful data
-    - Repeated HTML components
-    - Empty values or missing fields
+    - Application state and hydration data
+    - Nested product, restaurant, flight, hotel or other records
+    - Arrays of variants, images, ingredients and nutrition attributes
+    - HTML links, image attributes, metadata and structured data
 
-    Determine the correct parsing strategy from the actual data.
+    Before writing the parser:
+
+    1. Inspect the actual response structure.
+    2. Identify the real record containers and relevant nested objects.
+    3. Locate every source field that can satisfy a requested field.
+    4. Determine whether the data is stored directly, nested, embedded
+    in HTML, or distributed across multiple related structures.
+    5. Use evidence from the supplied response rather than guessing.
+    6. Preserve the association between a record and its nested data.
+    7. Do not assume the first matching object contains all the data.
+    8. Do not make HTTP requests or access external files.
+
+    If a field is unavailable in the supplied response, return None
+    for that requested field unless its documented normalization rule
+    can derive it reliably from other source-backed values.
+
+    Never invent source values.
+
+    ============================================================
+    2. HTML, JSON AND EMBEDDED JSON
+    ============================================================
 
     For HTML:
-    - Inspect the real DOM structure.
-    - Identify the correct record container.
-    - Inspect class names, IDs, attributes, labels and links.
+    - Inspect the actual HTML structure.
+    - Identify repeated record containers.
     - Use lxml.html or another suitable parser.
-    - Prefer stable selectors based on actual response content.
-    - Use relative XPath expressions inside the identified record
-    whenever appropriate.
-    - Do not invent HTML elements or attributes.
+    - Use stable, source-supported XPath or CSS selectors.
+    - Prefer relative selectors inside each record container.
+    - Inspect href, src, data-src, srcset, alt, title and other
+    relevant attributes when supported by the source.
+    - Inspect structured metadata and JSON-LD when present.
+    - Avoid selecting unrelated navigation, header or footer content.
 
     For JSON:
-    - Parse the actual JSON structure.
-    - Follow the real keys and nested objects.
-    - Iterate dynamically over relevant arrays.
-    - Do not invent keys or assume a structure that is absent.
+    - Parse JSON using json.loads when input is a JSON string.
+    - Support already parsed dictionaries and lists.
+    - Follow actual nested keys and relationships.
+    - Iterate over every relevant array.
+    - Inspect sibling objects when they contain requested fields
+    belonging to the same product or record.
+    - Do not assume keys exist unless confirmed by the response.
 
     For JSON embedded in HTML:
-    - Identify the actual script or data container.
-    - Extract and parse the embedded JSON correctly.
-    - Use the real structure present in the response.
+    - Locate the actual script or data container.
+    - Extract and parse embedded JSON safely.
+    - Handle escaped JSON and relevant structured state where feasible.
+    - Inspect the resulting objects for all requested fields.
+    - Do not treat arbitrary JavaScript as valid JSON.
+
+    If a parsing strategy fails, use another strategy supported by
+    the actual input. Do not silently return fabricated values.
 
     ============================================================
-    3. STRICT DYNAMIC PARSING REQUIREMENTS
+    3. DYNAMIC MULTI-RECORD EXTRACTION
     ============================================================
 
-    The generated parser MUST be dynamic.
+    The parser must work across different response values with the
+    same general structure.
 
-    1. Do not hardcode extracted names, prices, phone numbers,
-    locations, product IDs, URLs or other example values.
+    1. Extract every relevant record available in the input.
+    2. Do not stop after the first record.
+    3. Do not hardcode product names, prices, IDs, URLs or examples.
+    4. Do not use elements[0] or equivalent fixed-index selection
+    as the general record extraction strategy.
+    5. Do not assume every record contains every requested field.
+    6. A missing field must not prevent extraction of other fields.
+    7. Avoid mixing values from different products or records.
+    8. Deduplicate records only when a reliable unique identifier
+    or source-backed equivalence rule is available.
+    9. Preserve source ordering where possible.
+    10. Use safe fallbacks only when they are relevant to the same
+        record and supported by actual source evidence.
 
-    2. Do not write a parser specifically for one record's values.
+    The result must always be a list of dictionaries.
+    For one record, return a list containing one dictionary.
+    For no relevant records, return an empty list.
 
-    3. Do not assume the requested record is always the first
-    matching HTML element or JSON array item.
-
-    4. Identify repeated record containers and iterate over them.
-
-    5. Extract each requested field from its corresponding record.
-
-    6. Do not combine values belonging to different records.
-
-    7. Do not use fixed XPath result indexing such as:
-        elements[0]
-        name_elements[0]
-        phone_elements[0]
-
-    Instead, use safe iteration, validated candidate selection,
-    or next(iter(candidates), None) where appropriate.
-
-    8. Do not use a fixed array index to select a record unless
-    the actual response structure explicitly requires that index.
-
-    9. Do not use positional selectors such as div[1] or
-    //div[3] when a stable class, ID, attribute or relationship
-    is available.
-
-    10. Do not rely on CSS class names that are not present in
-        the supplied response.
-
-    11. Do not assume every record contains every requested field.
-
-    12. A missing field in one record must not prevent extraction
-        of other fields or other records.
-
-    13. Do not return an empty string merely because the first
-        candidate is empty. Inspect other valid candidates within
-        the same record when appropriate.
-
-    14. Do not silently substitute an unrelated value for a
-        missing field.
-
-    15. Repeated executions with different response data of the
-        same structure must extract the corresponding new values.
+    Include the requested keys consistently in every output record.
+    Use None for missing values rather than silently omitting keys.
 
     ============================================================
-    4. PHONE NUMBER AND CONTACT FIELD EXTRACTION
+    4. REQUIRED FIELDS AND OUTPUT COMPLETENESS
     ============================================================
 
-    Phone numbers and contact information require special care.
+    Treat Required Fields as the requested output schema.
 
-    When a phone number is requested:
+    For every requested field:
 
-    1. Search the actual relevant record for:
-    - Anchor elements with href attributes beginning with tel:
-    - Phone-related classes and IDs
-    - Elements containing phone labels
-    - Text nodes containing phone numbers
-    - Relevant structured JSON properties
-    - Other actual phone-related attributes in the response
+    1. Search all relevant parts of the record.
+    2. Map source fields to requested output fields using their
+    actual meaning, not just similar names.
+    3. Inspect nested objects and arrays before declaring a field
+    unavailable.
+    4. Do not omit a field simply because it is deeply nested.
+    5. Preserve complete lists and complete text values.
+    6. Do not truncate descriptions, ingredients or other details.
+    7. Do not substitute an unrelated field for a missing value.
+    8. Use consistent spelling for output keys.
+    9. Preserve appropriate types: strings, numbers, booleans,
+    lists, dictionaries or None.
+    10. Do not add unrelated fields unless requested or required
+        by an explicitly requested nested structure.
 
-    2. If the screenshot shows a phone number, use its visible
-    label and location to identify the corresponding element
-    in the response.
+    If a requested field is a collection, return the complete
+    collection rather than just its first item.
 
-    3. Prefer a matching tel: link when it belongs to the correct
-    record and contains the actual number.
-
-    4. If the link text and tel: attribute differ, inspect both
-    and select the representation appropriate to the requested
-    field. Do not assume they are always identical.
-
-    5. If one candidate is empty, inspect other relevant candidates
-    in the same record.
-
-    6. Do not select the first phone-related element from the
-    entire page if it belongs to a different person or record.
-
-    7. Do not extract header contact information, unrelated office
-    numbers, footer numbers or navigation text as the record's
-    phone number.
-
-    8. Do not discard a valid number because it contains spaces,
-    parentheses, hyphens, a country code or other formatting.
-
-    9. Preserve the actual phone number unless normalization
-    is explicitly requested.
-
-    10. If no valid phone number exists in the supplied response,
-        return None. Never invent or copy the number from the
-        screenshot into the output.
-
-    Apply equivalent record-aware logic to other requested fields,
-    including names, roles, addresses, locations, prices, ratings,
-    IDs, URLs and availability.
+    If the source contains a nested object whose attributes are
+    individually requested, extract the individual attributes.
+    Do not collapse them into one unstructured text string.
 
     ============================================================
-    5. SELECTOR VALIDATION AND FALLBACKS
+    5. REFERENCE SCREENSHOT ANALYSIS
+    ============================================================
+
+    If screenshots are attached:
+
+    1. Inspect the entire screenshot.
+    2. Identify visible labels, values, product images, breadcrumbs,
+    prices, nutrition panels and other requested information.
+    3. Understand which visible values belong to which record.
+    4. Use screenshots to identify the corresponding source structures.
+    5. Prefer actual response data over visible presentation text.
+    6. Never hardcode values taken from screenshots.
+    7. Never assume a value exists in the response because it appears
+    in a screenshot.
+    8. If the screenshot and response differ, preserve the actual
+    response value and do not invent a reconciliation.
+
+    The screenshot identifies what to look for.
+    The supplied response determines what can be extracted.
+
+    ============================================================
+    6. IMAGE EXTRACTION — ALL AVAILABLE IMAGES
+    ============================================================
+
+    Image extraction is a high-priority requirement whenever image
+    fields are requested.
+
+    Inspect all relevant image sources in the supplied response,
+    including:
+    - Main or primary product images
+    - Alternate product images
+    - Image galleries and media arrays
+    - Thumbnail and full-size image variants
+    - Image objects nested under product details
+    - Variant-specific images
+    - HTML img elements and their relevant attributes
+    - src, data-src, srcset and supported image metadata
+    - Embedded JSON containing image IDs or image URLs
+
+    Rules:
+
+    1. Extract ALL distinct images associated with the correct record.
+    2. Never stop after extracting the first image.
+    3. Do not confuse a product ID with an image ID.
+    4. Inspect every relevant image object and nested image array.
+    5. Prefer the source's actual full-size URL when available.
+    6. Resolve relative image URLs only when the base URL is known.
+    7. Remove duplicate image URLs while preserving source order.
+    8. Do not combine images from unrelated records or variants.
+    9. Do not invent additional images.
+    10. If no images are available, return an empty list.
+
+    When image URLs are requested, use a consistent list field such as
+    image_urls. If the required schema explicitly specifies image_url,
+    preserve that key but return a list when all images are requested.
+
+    If a retailer-specific image URL template is explicitly provided
+    or can be reliably identified from the supplied website type,
+    use it only when the source supplies a valid image ID and the
+    template is appropriate for that retailer.
+
+    For Jewel-Osco / Albertsons, when applicable, the image URL pattern
+    is:
+
+    https://images.albertsons-media.com/is/image/ABS/IMAGE_ID
+
+    Replace IMAGE_ID with the actual source-backed image identifier.
+    Do not use an unrelated ID just to create a URL.
+
+    If both an image ID and a complete image URL exist, prefer the
+    complete source URL unless the requested normalization explicitly
+    requires the retailer's canonical URL pattern.
+
+    ============================================================
+    7. PRODUCT URL AND LINK NORMALIZATION
+    ============================================================
+
+    When product_url is requested:
+
+    1. First inspect the actual product's canonical URL and link fields.
+    2. Prefer a valid product-specific URL found in the source.
+    3. If only a product ID is available, construct a URL only when
+    the correct retailer-specific template is known.
+    4. Confirm that the ID belongs to the product, not an image,
+    variant, category or unrelated object.
+    5. Do not return null if a valid URL can be reliably constructed.
+    6. Do not fabricate a URL from an unverified identifier.
+    7. Do not apply one retailer's URL template to another retailer.
+
+    For Jewel-Osco products, when the website type is Jewel-Osco and
+    the verified product ID is available, the URL pattern is:
+
+    https://www.jewelosco.com/shop/pd/p/PRODUCT_ID
+
+    Replace PRODUCT_ID with the actual verified product ID.
+
+    If a complete canonical product URL exists in the source, prefer
+    that URL when it refers to the same product.
+
+    Do not mistake image IDs, UPCs, SKUs or other identifiers for
+    product IDs unless the source establishes their relationship.
+
+    Normalize relative links only when the correct base domain is known.
+    Do not append an identifier to an unrelated URL.
+
+    ============================================================
+    8. BREADCRUMB AND CATEGORY HIERARCHY
+    ============================================================
+
+    When breadcrumb, category or category hierarchy fields are requested:
+
+    1. Extract every relevant hierarchy segment from the source.
+    2. Preserve the source's original order from parent to child.
+    3. Include all available levels rather than only the top-level
+    category or final category.
+    4. Use " > " as the separator when breadcrumb is requested as text.
+    5. Remove duplicate adjacent segments caused by repeated markup.
+    6. Do not invent missing intermediate categories.
+    7. Keep category and breadcrumb separate when both are requested.
+
+    Example format:
+
+    Parent Category > Subcategory > Leaf Category
+
+    If the source exposes department, aisle and shelf separately,
+    combine them in the correct source hierarchy when requested.
+    Do not include unrelated navigation categories.
+
+    ============================================================
+    9. PRICE, CURRENCY AND UNIT PRICE
+    ============================================================
+
+    When price fields are requested:
+
+    - Extract regular, original, sale, promotional, loyalty, digital
+    and unit prices separately whenever present.
+    - Keep price values numeric when the source supports numeric values.
+    - Keep currency in a separate field.
+    - Do not include currency symbols inside numeric price values.
+    - Do not remove decimal precision.
+    - Do not confuse unit price with selling price.
+    - Preserve the price's associated package size or unit when relevant.
+    - Do not calculate a missing price unless a reliable calculation
+    is explicitly requested and the necessary inputs are available.
+    - Return None for a requested price type that is unavailable.
+
+    Examples of output types:
+
+    price: 2.99
+    sale_price: None
+    currency: "USD"
+    unit_price: 0.50
+
+    These are type examples only, not extracted values.
+
+    If the source contains a currency code, prefer the code.
+    If only a currency symbol is available, preserve it or normalize
+    it only when the currency can be determined reliably.
+
+    Do not assume every dollar symbol means USD.
+
+    ============================================================
+    10. NUTRITION FACTS — COMPLETE KEY-VALUE EXTRACTION
+    ============================================================
+
+    When nutrition, nutritional information or nutrition facts are
+    requested, inspect the entire source for nutrition data.
+
+    Look for:
+    - Nutrition panels and tables
+    - Nested nutrition objects
+    - Arrays of nutrition attributes
+    - Serving-size metadata
+    - Daily-value percentages
+    - Embedded JSON and structured state
+    - HTML labels and their corresponding values
+    - Separate attributes distributed across related objects
+
+    Extract ALL available nutrition attributes, not only the first
+    few or the most common ones.
+
+    Potential attributes include, but are not limited to:
+    - Serving size
+    - Calories
+    - Total fat
+    - Saturated fat
+    - Trans fat
+    - Cholesterol
+    - Sodium
+    - Total carbohydrates
+    - Dietary fiber
+    - Total sugars
+    - Added sugars
+    - Protein
+    - Vitamin D
+    - Calcium
+    - Iron
+    - Potassium
+    - Any additional nutrition attributes actually present
+
+    Rules:
+
+    1. Do not assume the list above is exhaustive.
+    2. Inspect every nutrition entry and preserve its actual meaning.
+    3. Store attributes as structured key-value data when requested.
+    4. Preserve numeric values and their original units.
+    5. Preserve daily-value percentages when available.
+    6. Keep serving size associated with the correct nutrition panel.
+    7. Preserve different panels or serving sizes separately when needed.
+    8. Do not combine all nutrition facts into a single text string.
+    9. Do not fabricate values for attributes missing from the source.
+    10. Do not confuse ingredient quantities with nutrition values.
+
+    A suitable nested structure, when compatible with Required Fields,
+    is a nutrition dictionary containing all source-backed attributes.
+    Each attribute may contain value, unit and daily_value fields when
+    those properties exist in the source.
+
+    Do not force every nutrition attribute into an identical structure
+    if the source clearly represents some attributes differently.
+    Preserve meaningful source information.
+
+    ============================================================
+    11. INGREDIENTS, ALLERGENS AND PRODUCT DETAILS
+    ============================================================
+
+    When requested, extract complete source-backed values for:
+    - Ingredients
+    - Allergens and warnings
+    - Directions and usage instructions
+    - Product description
+    - Manufacturer and distributor details
+    - Package size and measurement unit
+    - Storage instructions
+    - Product-specific details
+    - Other available requested attributes
+
+    Inspect nested product-detail objects and relevant HTML sections.
+    Do not rely only on a short visible description if the full details
+    are present elsewhere in the response.
+
+    Preserve the complete ingredients statement and all meaningful
+    text. Do not summarize or truncate it.
+
+    Keep nutrition facts separate from ingredients when structured
+    nutrition data is available.
+
+    If more_info is requested, use it for relevant additional details
+    that do not already have dedicated requested fields. Avoid
+    unnecessary duplication.
+
+    ============================================================
+    12. FIELD-SPECIFIC EXTRACTION AND NORMALIZATION
+    ============================================================
+
+    Apply the following general rules to all website types.
+
+    Identifiers:
+    - Preserve product IDs, record IDs, SKUs, UPCs and other identifiers.
+    - Do not interchange identifiers without source evidence.
+    - Preserve leading zeros where meaningful.
+
+    Ratings:
+    - Use correctly spelled keys such as rating and review_count.
+    - Extract the actual rating and review count from the correct record.
+    - Do not confuse rating counts with rating values.
+
+    Availability:
+    - Extract source-backed availability or stock status.
+    - Preserve the difference between unavailable, sold out, unknown
+    and missing data when the source supports those distinctions.
+
+    Links:
+    - Prefer canonical record-specific URLs.
+    - Normalize URLs only when the source provides enough evidence.
+    - Do not generate unrelated links.
+
+    Dates and times:
+    - Preserve the source's timezone and format when relevant.
+    - Do not infer a missing date or time.
+
+    Text:
+    - Strip unnecessary leading and trailing whitespace.
+    - Preserve meaningful punctuation, units and multilingual text.
+    - Do not remove meaningful characters from identifiers or names.
+
+    Apply only the normalization rules relevant to the supplied
+    website and requested fields.
+
+    ============================================================
+    13. PHONE AND CONTACT EXTRACTION
+    ============================================================
+
+    When phone or contact fields are requested:
+
+    1. Inspect record-specific tel: links, relevant labels, text nodes,
+    structured JSON properties and actual contact attributes.
+    2. Check multiple valid candidates within the same record.
+    3. Do not use unrelated header, footer or office contact numbers.
+    4. Preserve the number's original formatting unless normalization
+    is requested.
+    5. Return None if no valid number is available.
+
+    Apply equivalent record-aware logic to names, addresses, locations,
+    prices, ratings, IDs, URLs and other requested fields.
+
+    ============================================================
+    14. SELECTOR VALIDATION AND FALLBACKS
     ============================================================
 
     For each requested field:
 
-    1. Identify the most reliable selector or data path using
-    evidence from the supplied response.
+    1. Prefer selectors and data paths supported by the response.
+    2. Consider other relevant candidates when the first is missing
+    or empty.
+    3. Keep fallback logic associated with the same record.
+    4. Avoid arbitrary page-wide text matches.
+    5. Avoid invented selectors and unsupported JSON keys.
+    6. Do not silently substitute unrelated values.
+    7. Return None when no reliable value can be extracted.
+    8. Handle malformed optional data without losing valid records.
 
-    2. Consider more than one valid extraction strategy when
-    the response supports it.
-
-    3. If a candidate selector produces no useful value, inspect
-    other relevant structures within the same record.
-
-    4. Prefer semantic evidence such as:
-    - Stable attributes
-    - Relevant class names
-    - Labels
-    - Link destinations
-    - Relationships between elements
-    - Actual JSON keys
-    - Record-specific containers
-
-    5. Avoid broad selectors that accidentally capture unrelated
-    text elsewhere on the page.
-
-    6. Avoid taking an arbitrary element's text as a fallback.
-
-    7. Do not fabricate a fallback value.
-
-    8. Use None when no supported value can be found.
-
-    9. Keep fallback logic inside parse_data(data).
-
-    10. Preserve the relationship between every record and its
-        requested field values.
+    Do not use broad fallback selectors that accidentally mix data
+    from different products or unrelated page sections.
 
     ============================================================
-    6. OUTPUT FUNCTION REQUIREMENTS
+    15. PYTHON FUNCTION REQUIREMENTS
     ============================================================
 
     Generate exactly ONE top-level function:
 
     def parse_data(data):
         ...
-        return result
 
     The function must:
 
-    - Accept the complete supplied response through data.
-    - Parse the supplied response without making HTTP requests.
-    - Work with a string containing HTML, JSON or text.
-    - Handle an already parsed dictionary or list when appropriate.
+    - Accept the supplied response through data.
+    - Support strings, dictionaries and lists where appropriate.
+    - Parse HTML, JSON or embedded JSON according to the actual input.
     - Include every required import inside the function.
-    - Keep all parsing logic inside this function.
+    - Keep all parsing logic inside the function.
     - Return a list of dictionaries consistently.
-    - Return a list containing one dictionary for a single record.
-    - Include every requested field name exactly as supplied.
-    - Return None for genuinely unavailable requested fields.
-    - Preserve valid extracted values and suitable data types.
-    - Strip unnecessary whitespace from text values.
-    - Handle missing elements, empty text, missing keys and nulls.
-    - Avoid crashing when an optional element is absent.
-    - Extract multiple records when they are present.
-    - Return an empty list if no relevant records are found.
-    - Avoid unnecessary fields that the user did not request.
-    - Never hardcode values from the supplied example.
-    - Never make network requests or read external files.
-    - Never use Selenium, Playwright or browser automation.
+    - Include every requested output key in each record.
+    - Return None for genuinely unavailable requested values.
+    - Return an empty list when no relevant records are found.
+    - Handle missing keys, empty values and nulls safely.
+    - Extract multiple records dynamically.
+    - Preserve nested lists and dictionaries where requested.
+    - Avoid unnecessary output fields.
+    - Avoid hardcoded sample values.
+    - Avoid network requests, external file access and browser automation.
     - Never create additional top-level functions.
-    - Never return XPath expressions separately.
-    - Never return JSON paths separately.
+    - Never return selectors or JSON paths instead of parsed results.
+    - Produce syntactically valid, executable Python code.
+
+    Nested helper functions and imports may be defined inside parse_data
+    when useful. Do not define additional top-level functions.
+
+    Use standard libraries where possible and suitable installed
+    parsing libraries such as lxml when HTML parsing requires them.
+
+    Do not silently swallow unexpected exceptions. Handle expected
+    missing or malformed optional data safely while allowing genuine
+    parsing problems to be diagnosed.
 
     ============================================================
-    7. FINAL SELF-CHECK BEFORE RETURNING CODE
+    16. FINAL SELF-CHECK
     ============================================================
 
-    Before producing the final answer, internally verify:
+    Before returning the parser, verify:
 
     1. Every requested field is accounted for.
-    2. The screenshot was considered if one was attached.
-    3. Each selector or data path is supported by the response.
-    4. Phone numbers and other contact details are searched
-    through relevant record-specific candidates.
-    5. The parser does not blindly select the first result.
-    6. Multiple records are handled dynamically.
-    7. Missing fields return None rather than causing errors.
-    8. No screenshot values are hardcoded.
-    9. No example record values are hardcoded.
-    10. The code is syntactically valid Python.
-    11. The code can run against the supplied response.
-    12. Each record's values come from the same record.
-    13. No requested field is silently omitted.
-    14. All imports are inside parse_data(data).
+    2. All relevant records are processed.
+    3. Nested objects and arrays were inspected.
+    4. All available images are collected when requested.
+    5. Product URLs use verified IDs and appropriate templates.
+    6. Breadcrumbs preserve the complete available hierarchy.
+    7. Prices and currency are normalized correctly.
+    8. All available nutrition attributes are extracted.
+    9. Ingredients and product details are complete.
+    10. Record-specific data is not mixed with another record.
+    11. Missing data is not fabricated.
+    12. The parser handles missing optional fields.
+    13. Output keys are spelled correctly.
+    14. The result is a list of dictionaries.
+    15. The Python code is syntactically valid.
+    16. The parser does not make network requests.
+    17. The code follows the requested output schema.
 
-    Do not claim that a field was successfully verified unless
-    the supplied response actually supports the extraction.
+    Do not claim that data was extracted or validated if the supplied
+    response does not support that claim.
 
     ============================================================
     FINAL OUTPUT FORMAT
     ============================================================
 
-    Return ONLY the complete Python code.
+    Return ONLY the complete Python code for parse_data(data).
 
-    Do not include markdown code fences.
-    Do not include explanations, comments outside the function,
-    test results, or separate selector descriptions.
+    Do not include Markdown code fences.
+    Do not include explanations outside the function.
+    Do not return separate selectors, JSON paths or test results.
 
-    Expected structure:
-
-    def parse_data(data):
-        ...
-        return result
+    The function must return the parsed records as a list of dictionaries.
     """
 
     # --------------------------------------------------------
