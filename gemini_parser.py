@@ -1,5 +1,6 @@
 import os
 import re
+import json
 import threading
 from google import genai
 from google.genai import types
@@ -109,10 +110,22 @@ def generate_parser(
     # --------------------------------------------------------
     # Validate Response Data
     # --------------------------------------------------------
-    if not response_data or not response_data.strip():
-        raise ValueError(
-            "Response data is required."
+    if response_data is None:
+        raise ValueError("Response data is required.")
+
+    if isinstance(response_data, (dict, list)):
+        response_data = json.dumps(
+            response_data,
+            ensure_ascii=False,
+            indent=2
         )
+    elif isinstance(response_data, str):
+        response_data = response_data.strip()
+    else:
+        response_data = str(response_data).strip()
+
+    if not response_data:
+        raise ValueError("Response data is empty.")
     # --------------------------------------------------------
     # Validate Required Fields
     # --------------------------------------------------------
