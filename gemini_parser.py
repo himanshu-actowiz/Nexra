@@ -163,7 +163,6 @@ def generate_parser(
     # --------------------------------------------------------
     # Gemini Prompt
     # --------------------------------------------------------
-   
     
     prompt = f"""
     You are a senior Python web scraping engineer specializing in
@@ -544,6 +543,118 @@ def generate_parser(
     if the source clearly represents some attributes differently.
     Preserve meaningful source information.
 
+
+    ============================================================
+    10A. PRODUCT SPECIFICATIONS AND GENERIC KEY-VALUE PAIRS
+    ============================================================
+
+    This is a critical extraction requirement. Product specifications,
+    attributes, technical details, features and other label-value pairs
+    are often stored separately from the main product object. Do not
+    return None until all relevant structures in the supplied response
+    have been inspected.
+
+    When fields such as specifications, specification, specs, attributes,
+    technical_details, product_details, features, dimensions, properties,
+    key_features, additional_information, or similar fields are requested,
+    inspect the full record and all relevant nested objects.
+
+    Search for key-value data represented as:
+    - A dictionary/object, for example {"Material": "Cotton"}.
+    - A list of objects, for example [{"name": "Material", "value": "Cotton"}].
+    - Alternative label/value keys such as key/value, label/value,
+      name/value, title/value, attribute/value, displayName/displayValue,
+      property/value, feature/value, or text/value.
+    - Nested groups such as {"General": [...], "Dimensions": [...]}.
+    - Arrays of specification groups, tabs, sections, or attribute sets.
+    - HTML tables using tr, th, td, or equivalent markup.
+    - Definition lists using dt/dd.
+    - HTML rows/cards where the label and value are in sibling elements.
+    - JSON-LD, embedded JSON, hydration state, or application state.
+    - Product variants where some specifications are variant-specific.
+    - Text blocks containing lines such as "Material: Cotton".
+    - HTML data attributes or structured metadata when they clearly map
+      to the requested field.
+
+    EXTRACTION RULES:
+    1. Inspect all relevant specification groups and all rows/items.
+       Never extract only the first key-value pair.
+    2. Preserve every distinct label and its corresponding value.
+    3. Keep the exact association between each label and value; do not
+       pair values with labels from a different row or record.
+    4. Preserve the source's grouping when meaningful, such as
+       "General", "Dimensions", "Performance", and "Technical details".
+    5. If the requested output field is a dictionary, return a dictionary
+       of all available key-value pairs.
+    6. If the source has repeated labels in different groups, do not
+       silently overwrite them. Preserve the groups or use a list of
+       {"label": ..., "value": ...} objects when appropriate for the
+       requested schema.
+    7. If the requested output field is a list, preserve all available
+       entries as a list.
+    8. If the schema asks for individual attributes, map each requested
+       attribute from the matching source label, including reasonable
+       case/whitespace/punctuation-insensitive label matching.
+    9. Match by meaning and context, not by a vague substring alone.
+       For example, do not map "package weight" to "product weight"
+       unless the source establishes they mean the same thing.
+    10. Preserve units, symbols, ranges, percentages, dimensions, and
+        meaningful punctuation (e.g. "12 x 8 x 4 cm", "220-240 V",
+        "5 kg", "IP68"). Do not strip units from specification values.
+    11. If a value is itself a list, dictionary, or nested object,
+        inspect it recursively and preserve its useful structure rather
+        than converting it to None or an unhelpful string.
+    12. Treat values such as 0, False, "0", and empty-but-meaningful
+        arrays as valid source values. Do not use truthiness checks that
+        incorrectly replace them with None.
+    13. Handle source aliases such as specification/specifications,
+        attributes/attributeGroups, key/name/label, and value/values/
+        displayValue only when those keys actually exist in the input.
+    14. If HTML contains a label in one cell and its value in the next
+        cell, parse the relationship row by row. Do not use a page-wide
+        text search that can mix unrelated values.
+    15. If a requested specification is not present in the primary
+        product object, inspect sibling detail objects, specification
+        tabs, variant objects and embedded state before returning None.
+    16. Never invent a specification or fill it using assumptions about
+        the product category.
+    17. Return None only when the requested scalar attribute genuinely
+        cannot be found; return an empty dictionary/list only when the
+        requested collection is genuinely absent or empty in the source.
+    18. Keep raw specification labels when a canonical mapping is
+        uncertain. Do not discard a source entry merely because its
+        label is unfamiliar.
+    19. When both raw specifications and individually requested fields
+        are needed, populate both independently from the same source.
+    20. Include robust handling for alternate schemas across records:
+        a missing attribute on one record must not stop extraction from
+        other records.
+
+    RECOMMENDED OUTPUT SHAPES (choose the shape that matches Required Fields):
+
+    Raw key-value dictionary:
+    "specifications": {
+        "Material": "Cotton",
+        "Fit": "Regular",
+        "Care": "Machine wash"
+    }
+
+    Grouped specifications:
+    "specifications": {
+        "General": {"Material": "Cotton"},
+        "Dimensions": {"Length": "12 cm", "Width": "8 cm"}
+    }
+
+    List of label-value entries:
+    "specifications": [
+        {"label": "Material", "value": "Cotton"},
+        {"label": "Length", "value": "12 cm"}
+    ]
+
+    These are format examples only. Do not hardcode these values.
+    Do not force one shape when Required Fields explicitly requests
+    another shape or the source structure should be preserved.
+
     ============================================================
     11. INGREDIENTS, ALLERGENS AND PRODUCT DETAILS
     ============================================================
@@ -710,6 +821,12 @@ def generate_parser(
     15. The Python code is syntactically valid.
     16. The parser does not make network requests.
     17. The code follows the requested output schema.
+    18. Product specifications and generic key-value pairs were searched
+        in all relevant nested objects, arrays, HTML tables and detail sections.
+    19. All specification rows and groups are extracted, not just the first.
+    20. Valid values such as 0 and False are not mistakenly converted to None.
+    21. Missing fields are checked using explicit missing/empty checks,
+        not truthiness alone.
 
     Do not claim that data was extracted or validated if the supplied
     response does not support that claim.
@@ -726,7 +843,6 @@ def generate_parser(
 
     The function must return the parsed records as a list of dictionaries.
     """
-
     # --------------------------------------------------------
     # Try Gemini Keys
     # --------------------------------------------------------
