@@ -2,12 +2,12 @@ import os
 import base64
 import json
 import shlex
-
 import requests
 from flask import Flask, jsonify, render_template, request, send_from_directory
-
 from field_config import FIELD_OPTIONS
 from gemini_parser import generate_parser
+from werkzeug.exceptions import RequestEntityTooLarge
+
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PUBLIC_DIR = os.path.join(BASE_DIR, "public")
@@ -18,13 +18,14 @@ app = Flask(
     static_folder=None,
     template_folder=TEMPLATES_DIR,
 )
-app.config["MAX_CONTENT_LENGTH"] = 6 * 1024 * 1024
+app.config["MAX_CONTENT_LENGTH"] = 25 * 1024 * 1024
 app.config["JSON_SORT_KEYS"] = False
 
 WEBSITE_TYPES = [
     "Ecommerce", "Airline", "Hotel", "Restaurant",
     "Grocery", "Bus", "Train", "Other",
 ]
+
 
 
 @app.get("/")
@@ -73,6 +74,16 @@ def get_fields():
         "fields": FIELD_OPTIONS,
     })
 
+
+@app.errorhandler(RequestEntityTooLarge)
+def handle_large_request(error):
+    return jsonify({
+        "success": False,
+        "error": (
+            "Request size exceeds the 25 MB limit. "
+            "Reduce the response size or upload fewer/smaller images."
+        )
+    }), 413
 
 def parse_curl(curl_text):
     curl_text = curl_text.replace("\\\r\n", " ")
