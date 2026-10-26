@@ -18,7 +18,9 @@ app = Flask(
     static_folder=None,
     template_folder=TEMPLATES_DIR,
 )
-app.config["MAX_CONTENT_LENGTH"] = 25 * 1024 * 1024
+app.config["MAX_CONTENT_LENGTH"] = 30 * 1024 * 1024  # 30 MB total request
+app.config["MAX_FORM_MEMORY_SIZE"] = 25 * 1024 * 1024  # 25 MB per non-file form field
+app.config["MAX_FORM_PARTS"] = 1000
 app.config["JSON_SORT_KEYS"] = False
 
 WEBSITE_TYPES = [
@@ -77,11 +79,19 @@ def get_fields():
 
 @app.errorhandler(RequestEntityTooLarge)
 def handle_large_request(error):
+    app.logger.warning(
+        "Request rejected as too large. Content-Length=%s, "
+        "MAX_CONTENT_LENGTH=%s, MAX_FORM_MEMORY_SIZE=%s",
+        request.content_length,
+        app.config.get("MAX_CONTENT_LENGTH"),
+        app.config.get("MAX_FORM_MEMORY_SIZE"),
+    )
     return jsonify({
         "success": False,
         "error": (
-            "Request size exceeds the 25 MB limit. "
-            "Reduce the response size or upload fewer/smaller images."
+            "Request is too large. Maximum total request size is 30 MB "
+            "and maximum form-field size is 25 MB. Reduce the pasted "
+            "response or upload fewer/smaller images."
         )
     }), 413
 
@@ -354,6 +364,22 @@ def generate():
             "request_info": request_info,
         })
 
+    except RequestEntityTooLarge:
+        # request.form/request.files parsing can raise this inside the route;
+        # catch it here so the generic exception handler does not turn 413 into 500.
+        app.logger.warning(
+            "Request too large while parsing /api/generate. Content-Length=%s",
+            request.content_length,
+        )
+        return jsonify({
+            "success": False,
+            "error": (
+                "Request is too large. Maximum total request size is 30 MB "
+                "and maximum form-field size is 25 MB. Reduce the pasted "
+                "response or upload fewer/smaller images."
+            )
+        }), 413
+
     except requests.RequestException as exc:
         app.logger.exception("cURL request failed")
         return jsonify({
@@ -373,13 +399,6 @@ def generate():
         return jsonify({
             "error": f"Parser generation failed: {exc}"
         }), 500
-
-
-@app.errorhandler(413)
-def request_too_large(_error):
-    return jsonify({
-        "error": "Request is too large. Maximum size is 6 MB."
-    }), 413
 
 
 if __name__ == "__main__":
