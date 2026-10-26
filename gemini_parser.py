@@ -164,7 +164,7 @@ def generate_parser(
     # Gemini Prompt
     # --------------------------------------------------------
     
-    prompt = """
+    prompt = f"""
     You are a senior Python web scraping engineer specializing in
     accurate, robust, dynamic, production-quality HTML and JSON parsing.
 
@@ -560,12 +560,12 @@ def generate_parser(
     inspect the full record and all relevant nested objects.
 
     Search for key-value data represented as:
-    - A dictionary/object, for example {"Material": "Cotton"}.
-    - A list of objects, for example [{"name": "Material", "value": "Cotton"}].
+    - A dictionary/object, for example {{"Material": "Cotton"}}.
+    - A list of objects, for example [{{"name": "Material", "value": "Cotton"}}].
     - Alternative label/value keys such as key/value, label/value,
       name/value, title/value, attribute/value, displayName/displayValue,
       property/value, feature/value, or text/value.
-    - Nested groups such as {"General": [...], "Dimensions": [...]}.
+    - Nested groups such as {{"General": [...], "Dimensions": [...]}}.
     - Arrays of specification groups, tabs, sections, or attribute sets.
     - HTML tables using tr, th, td, or equivalent markup.
     - Definition lists using dt/dd.
@@ -588,7 +588,7 @@ def generate_parser(
        of all available key-value pairs.
     6. If the source has repeated labels in different groups, do not
        silently overwrite them. Preserve the groups or use a list of
-       {"label": ..., "value": ...} objects when appropriate for the
+       {{"label": ..., "value": ...}} objects when appropriate for the
        requested schema.
     7. If the requested output field is a list, preserve all available
        entries as a list.
@@ -633,22 +633,22 @@ def generate_parser(
     RECOMMENDED OUTPUT SHAPES (choose the shape that matches Required Fields):
 
     Raw key-value dictionary:
-    "specifications": {
+    "specifications": {{
         "Material": "Cotton",
         "Fit": "Regular",
         "Care": "Machine wash"
-    }
+    }}
 
     Grouped specifications:
-    "specifications": {
-        "General": {"Material": "Cotton"},
-        "Dimensions": {"Length": "12 cm", "Width": "8 cm"}
-    }
+    "specifications": {{
+        "General": {{"Material": "Cotton"}},
+        "Dimensions": {{"Length": "12 cm", "Width": "8 cm"}}
+    }}
 
     List of label-value entries:
     "specifications": [
-        {"label": "Material", "value": "Cotton"},
-        {"label": "Length", "value": "12 cm"}
+        {{"label": "Material", "value": "Cotton"}},
+        {{"label": "Length", "value": "12 cm"}}
     ]
 
     These are format examples only. Do not hardcode these values.
@@ -843,12 +843,6 @@ def generate_parser(
 
     The function must return the parsed records as a list of dictionaries.
     """
-    prompt = (
-        prompt
-        .replace("__SITE_TYPE__", str(site_type))
-        .replace("__REQUIRED_FIELDS__", str(required_fields))
-        .replace("__RESPONSE_DATA__", str(response_data))
-    )
     # --------------------------------------------------------
     # Try Gemini Keys
     # --------------------------------------------------------
