@@ -294,9 +294,11 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!fieldsContainer) return;
 
         getCurrentState().selectedFields = new Set(
-            fieldsContainer
-                .querySelectorAll('input[type="checkbox"]:checked')
-                .map((checkbox) => checkbox.value)
+            Array.from(
+                fieldsContainer.querySelectorAll(
+                    'input[type="checkbox"]:checked'
+                )
+            ).map((checkbox) => checkbox.value)
         );
     }
 
