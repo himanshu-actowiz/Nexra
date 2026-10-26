@@ -13,17 +13,16 @@ document.addEventListener("DOMContentLoaded", () => {
     const customFieldInput = $("#custom-field");
     const additionalPromptInput = $("#parser-prompt");
     const responseType = $("#response-type");
-    const referenceImageInput = $("#reference-image");
+    const referenceImageInput =
+        $("#reference-image") || $("#reference-image-input");
     const imageList = $("#image-list");
     const addImageButton = $("#add-image-btn");
     const generateButton = $("#generate-btn");
     const toast = $("#toast");
 
     let currentMode = "curl";
-    let customFields = [];
-    let selectedImages = [];
-    let imageCounter = 0;
     let toastTimer;
+    let imageCounter = 0;
 
     // ==========================================
     // INDEPENDENT STATE FOR EACH MODE
@@ -32,24 +31,103 @@ document.addEventListener("DOMContentLoaded", () => {
     const modeState = {
         curl: {
             selectedFields: new Set(),
-            customFields: []
+            customFields: [],
+            input: "",
+            category: categorySelect?.value || "Ecommerce",
+            additionalPrompt: "",
+            responseType: responseType?.value || "json",
+            images: [],
+            results: null
         },
+
         response: {
             selectedFields: new Set(),
-            customFields: []
+            customFields: [],
+            input: "",
+            category: categorySelect?.value || "Ecommerce",
+            additionalPrompt: "",
+            responseType: responseType?.value || "json",
+            images: [],
+            results: null
         }
     };
 
-    function getMode() {
-        return modeState[currentMode] ? currentMode : "curl";
-    }
+    let selectedImages = [];
 
     function getCurrentState() {
-        return modeState[getMode()];
+        return modeState[currentMode];
     }
 
-    function syncCustomFields() {
-        customFields = getCurrentState().customFields;
+    function syncCurrentModeFromUI() {
+        const state = getCurrentState();
+
+        state.input = requestInput?.value || "";
+        state.category = categorySelect?.value || "Ecommerce";
+        state.additionalPrompt = additionalPromptInput?.value || "";
+        state.responseType = responseType?.value || "json";
+        state.images = selectedImages.slice();
+
+        saveCurrentFieldSelections();
+    }
+
+    function restoreCurrentModeToUI() {
+        const state = getCurrentState();
+
+        if (requestInput) {
+            requestInput.value = state.input || "";
+        }
+
+        if (categorySelect) {
+            categorySelect.value = state.category || "Ecommerce";
+        }
+
+        if (additionalPromptInput) {
+            additionalPromptInput.value = state.additionalPrompt || "";
+        }
+
+        if (responseType) {
+            responseType.value = state.responseType || "json";
+        }
+
+        selectedImages = state.images.slice();
+
+        renderFields();
+        renderImages();
+        updateCharacterCount();
+        updateModeUI();
+        updateResponseType();
+        restoreModeResults(state);
+    }
+
+    function restoreModeResults(state) {
+        const resultsSection = $("#results-section");
+        const codeOutput = $("#code-output");
+        const jsonOutput = $("#json-output");
+        const jsonStatus = $("#json-status");
+
+        if (!state.results) {
+            if (resultsSection) resultsSection.hidden = true;
+            if (codeOutput) codeOutput.textContent = "";
+            if (jsonOutput) jsonOutput.textContent = "";
+            if (jsonStatus) jsonStatus.textContent = "";
+            return;
+        }
+
+        if (codeOutput) {
+            codeOutput.textContent = state.results.code || "";
+        }
+
+        if (jsonOutput) {
+            jsonOutput.textContent = state.results.json || "";
+        }
+
+        if (jsonStatus) {
+            jsonStatus.textContent = state.results.status || "";
+        }
+
+        if (resultsSection) {
+            resultsSection.hidden = false;
+        }
     }
 
     // ==========================================
@@ -74,6 +152,7 @@ document.addEventListener("DOMContentLoaded", () => {
             "rating",
             "review_count"
         ],
+
         Airline: [
             "airline",
             "flight_number",
@@ -92,6 +171,7 @@ document.addEventListener("DOMContentLoaded", () => {
             "currency",
             "availability"
         ],
+
         Hotel: [
             "hotel_name",
             "hotel_id",
@@ -108,6 +188,7 @@ document.addEventListener("DOMContentLoaded", () => {
             "image_url",
             "hotel_url"
         ],
+
         Restaurant: [
             "restaurant_name",
             "restaurant_id",
@@ -124,6 +205,7 @@ document.addEventListener("DOMContentLoaded", () => {
             "delivery_fee",
             "minimum_order"
         ],
+
         Grocery: [
             "product_name",
             "product_id",
@@ -142,6 +224,7 @@ document.addEventListener("DOMContentLoaded", () => {
             "image_url",
             "product_url"
         ],
+
         Bus: [
             "operator",
             "bus_number",
@@ -155,6 +238,7 @@ document.addEventListener("DOMContentLoaded", () => {
             "currency",
             "seat_availability"
         ],
+
         Train: [
             "train_name",
             "train_number",
@@ -168,6 +252,7 @@ document.addEventListener("DOMContentLoaded", () => {
             "currency",
             "availability"
         ],
+
         Other: [
             "name",
             "id",
@@ -208,10 +293,9 @@ document.addEventListener("DOMContentLoaded", () => {
     function saveCurrentFieldSelections() {
         if (!fieldsContainer) return;
 
-        const state = getCurrentState();
-
-        state.selectedFields = new Set(
-            $$(`#fields-container input[type="checkbox"]:checked`)
+        getCurrentState().selectedFields = new Set(
+            fieldsContainer
+                .querySelectorAll('input[type="checkbox"]:checked')
                 .map((checkbox) => checkbox.value)
         );
     }
@@ -238,7 +322,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function getSelectedFields() {
         saveCurrentFieldSelections();
-
         return [...getCurrentState().selectedFields];
     }
 
@@ -250,7 +333,6 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!fieldsContainer) return;
 
         const state = getCurrentState();
-
         const category = categorySelect?.value || "Ecommerce";
 
         const standardFields =
@@ -260,17 +342,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
         function createField(field, isCustom = false) {
             const label = document.createElement("label");
+
             label.className = isCustom
                 ? "field-option custom-field"
                 : "field-option";
 
             const checkbox = document.createElement("input");
+
             checkbox.type = "checkbox";
             checkbox.value = field;
             checkbox.name = "required_fields";
-
-            // IMPORTANT:
-            // Restore only the current mode's selections.
             checkbox.checked = state.selectedFields.has(field);
 
             const span = document.createElement("span");
@@ -294,16 +375,12 @@ document.addEventListener("DOMContentLoaded", () => {
             fieldsContainer.appendChild(label);
         }
 
-        standardFields.forEach((field) => {
-            createField(field, false);
-        });
+        standardFields.forEach((field) => createField(field));
 
-        // Only render custom fields belonging to this mode.
         state.customFields.forEach((field) => {
             createField(field, true);
         });
 
-        syncCustomFields();
         updateSelectAllState();
     }
 
@@ -316,9 +393,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const state = getCurrentState();
 
             const checkboxes = [
-                ...fieldsContainer.querySelectorAll(
-                    'input[type="checkbox"]'
-                )
+                ...fieldsContainer.querySelectorAll('input[type="checkbox"]')
             ];
 
             checkboxes.forEach((checkbox) => {
@@ -341,7 +416,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (categorySelect) {
         categorySelect.addEventListener("change", () => {
-            // Save before re-rendering.
+            getCurrentState().category = categorySelect.value;
+
             saveCurrentFieldSelections();
             renderFields();
         });
@@ -368,11 +444,9 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        // Save the currently visible checkboxes before changing the DOM.
         saveCurrentFieldSelections();
 
         const state = getCurrentState();
-
         const category = categorySelect?.value || "Ecommerce";
 
         const standardFields =
@@ -386,27 +460,17 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        // Add to current mode only.
         state.customFields.push(field);
-
-        // Automatically select the newly added field.
         state.selectedFields.add(field);
-
-        syncCustomFields();
 
         customFieldInput.value = "";
 
-        // Re-render will restore the new field as checked.
         renderFields();
 
         showToast(`Custom field "${field}" added.`);
     }
 
-    const addFieldButton = $("#add-field");
-
-    if (addFieldButton) {
-        addFieldButton.addEventListener("click", addCustomField);
-    }
+    $("#add-field")?.addEventListener("click", addCustomField);
 
     if (customFieldInput) {
         customFieldInput.addEventListener("keydown", (event) => {
@@ -484,17 +548,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
     $$(".nav-item[data-mode]").forEach((button) => {
         button.addEventListener("click", () => {
-            // Save old mode before changing modes.
-            saveCurrentFieldSelections();
+            const nextMode = normalizeMode(button.dataset.mode);
 
-            currentMode = normalizeMode(button.dataset.mode);
+            if (nextMode === currentMode) return;
 
-            // Set the correct custom fields for the new mode.
-            syncCustomFields();
+            // Save all form data for the current mode.
+            syncCurrentModeFromUI();
 
-            // Render the new mode's independent state.
-            renderFields();
-            updateModeUI();
+            // Switch to the other mode.
+            currentMode = nextMode;
+
+            // Restore only the new mode's form data.
+            restoreCurrentModeToUI();
 
             showToast(
                 currentMode === "curl"
@@ -545,7 +610,24 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     if (responseType) {
-        responseType.addEventListener("change", updateResponseType);
+        responseType.addEventListener("change", () => {
+            getCurrentState().responseType = responseType.value;
+            updateResponseType();
+        });
+    }
+
+    if (requestInput) {
+        requestInput.addEventListener("input", () => {
+            getCurrentState().input = requestInput.value;
+            updateCharacterCount();
+        });
+    }
+
+    if (additionalPromptInput) {
+        additionalPromptInput.addEventListener("input", () => {
+            getCurrentState().additionalPrompt =
+                additionalPromptInput.value;
+        });
     }
 
     // ==========================================
@@ -563,33 +645,116 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    if (requestInput) {
-        requestInput.addEventListener("input", updateCharacterCount);
-    }
-
     // ==========================================
     // CLEAR INPUT
     // ==========================================
 
-    const clearButton = $("#clear-input");
+    $("#clear-input")?.addEventListener("click", () => {
+        if (requestInput) {
+            requestInput.value = "";
+        }
 
-    if (clearButton) {
-        clearButton.addEventListener("click", () => {
-            if (requestInput) requestInput.value = "";
+        getCurrentState().input = "";
 
-            updateCharacterCount();
-            requestInput?.focus();
+        updateCharacterCount();
+        requestInput?.focus();
 
-            showToast("Input cleared.");
-        });
-    }
+        showToast("Input cleared.");
+    });
 
     // ==========================================
     // REFERENCE IMAGES
     // ==========================================
 
+    const showImagesButton = $("#show-images-button");
+    const imageCountElement = $("#image-count");
+
+    const IMAGE_STORAGE_KEY = "nexraReferenceImages";
+    const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
+    const ALLOWED_IMAGE_TYPES = [
+        "image/png",
+        "image/jpeg",
+        "image/webp"
+    ];
+
+    function formatFileSize(bytes) {
+        if (bytes < 1024) return `${bytes} B`;
+
+        if (bytes < 1024 * 1024) {
+            return `${(bytes / 1024).toFixed(1)} KB`;
+        }
+
+        return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+    }
+
+    function readFileAsDataURL(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+
+            reader.onload = () => resolve(reader.result);
+
+            reader.onerror = () => {
+                reject(reader.error || new Error("Could not read image."));
+            };
+
+            reader.readAsDataURL(file);
+        });
+    }
+
+    function getStoredImages() {
+        try {
+            const stored = sessionStorage.getItem(IMAGE_STORAGE_KEY);
+            const parsed = stored ? JSON.parse(stored) : [];
+
+            return Array.isArray(parsed) ? parsed : [];
+        } catch (error) {
+            console.error("Unable to read saved reference images:", error);
+            return [];
+        }
+    }
+
+    function saveImagesToStorage() {
+        // Gallery storage is separate from the two modes' image state.
+        // This stores the currently visible mode's images.
+        const storedImages = selectedImages
+            .filter((item) => item.dataUrl)
+            .map((item) => ({
+                id: item.id,
+                name: item.file.name,
+                size: item.file.size,
+                type: item.file.type,
+                lastModified: item.file.lastModified,
+                dataUrl: item.dataUrl
+            }));
+
+        try {
+            sessionStorage.setItem(
+                IMAGE_STORAGE_KEY,
+                JSON.stringify(storedImages)
+            );
+        } catch (error) {
+            console.error("Unable to save reference images:", error);
+
+            showToast(
+                "Could not save images in this browser session. Try fewer or smaller images.",
+                "error"
+            );
+        }
+
+        if (imageCountElement) {
+            imageCountElement.textContent =
+                `${selectedImages.length} image${selectedImages.length === 1 ? "" : "s"}`;
+        }
+    }
+
     function renderImages() {
-        if (!imageList) return;
+        if (!imageList) {
+            if (imageCountElement) {
+                imageCountElement.textContent =
+                    `${selectedImages.length} image${selectedImages.length === 1 ? "" : "s"}`;
+            }
+            return;
+        }
 
         imageList.replaceChildren();
 
@@ -598,33 +763,53 @@ document.addEventListener("DOMContentLoaded", () => {
             card.className = "image-card";
 
             const img = document.createElement("img");
-            img.src = item.previewUrl;
+            img.src = item.previewUrl || item.dataUrl;
             img.alt = item.file.name;
+            img.loading = "lazy";
 
             const filename = document.createElement("span");
             filename.className = "image-card-name";
             filename.textContent = item.file.name;
             filename.title = item.file.name;
 
+            const size = document.createElement("span");
+            size.className = "image-card-size";
+            size.textContent = formatFileSize(item.file.size);
+
             const remove = document.createElement("button");
             remove.type = "button";
             remove.className = "remove-selected-image";
             remove.textContent = "Remove";
+            remove.setAttribute(
+                "aria-label",
+                `Remove ${item.file.name}`
+            );
 
             remove.addEventListener("click", () => {
-                URL.revokeObjectURL(item.previewUrl);
+                if (item.previewUrl) {
+                    URL.revokeObjectURL(item.previewUrl);
+                }
 
                 selectedImages = selectedImages.filter(
                     (image) => image.id !== item.id
                 );
 
+                getCurrentState().images = selectedImages.slice();
+
+                saveImagesToStorage();
                 renderImages();
+
                 showToast("Reference image removed.");
             });
 
-            card.append(img, filename, remove);
+            card.append(img, filename, size, remove);
             imageList.appendChild(card);
         });
+
+        if (imageCountElement) {
+            imageCountElement.textContent =
+                `${selectedImages.length} image${selectedImages.length === 1 ? "" : "s"}`;
+        }
     }
 
     if (addImageButton && referenceImageInput) {
@@ -633,58 +818,118 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    if (showImagesButton) {
+        showImagesButton.addEventListener("click", () => {
+            getCurrentState().images = selectedImages.slice();
+            saveImagesToStorage();
+
+            window.location.href = "/images";
+        });
+    }
+
     if (referenceImageInput) {
-        referenceImageInput.addEventListener("change", () => {
+        referenceImageInput.addEventListener("change", async () => {
             const files = Array.from(referenceImageInput.files || []);
             let added = 0;
 
-            files.forEach((file) => {
-                if (
-                    !["image/png", "image/jpeg", "image/webp"]
-                        .includes(file.type)
-                ) {
+            for (const file of files) {
+                if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
                     showToast(
                         `${file.name}: PNG, JPG or WebP only.`,
                         "error"
                     );
-                    return;
+                    continue;
                 }
 
-                if (file.size > 5 * 1024 * 1024) {
+                if (file.size > MAX_IMAGE_SIZE) {
                     showToast(
                         `${file.name}: maximum image size is 5 MB.`,
                         "error"
                     );
-                    return;
+                    continue;
                 }
 
-                const duplicate = selectedImages.some(
-                    (image) =>
-                        image.file.name === file.name &&
-                        image.file.size === file.size &&
-                        image.file.lastModified === file.lastModified
+                const duplicate = selectedImages.some((image) =>
+                    image.file.name === file.name &&
+                    image.file.size === file.size &&
+                    image.file.lastModified === file.lastModified
                 );
 
-                if (duplicate) return;
+                if (duplicate) continue;
 
-                selectedImages.push({
-                    id: ++imageCounter,
-                    file,
-                    previewUrl: URL.createObjectURL(file)
-                });
+                try {
+                    const dataUrl = await readFileAsDataURL(file);
 
-                added++;
-            });
+                    selectedImages.push({
+                        id: ++imageCounter,
+                        file,
+                        dataUrl,
+                        previewUrl: URL.createObjectURL(file)
+                    });
 
-            // Allow choosing the same file again later.
+                    added++;
+                } catch (error) {
+                    console.error(
+                        "Could not load image:",
+                        file.name,
+                        error
+                    );
+
+                    showToast(`Could not load ${file.name}.`, "error");
+                }
+            }
+
             referenceImageInput.value = "";
 
+            getCurrentState().images = selectedImages.slice();
+
+            saveImagesToStorage();
             renderImages();
 
             if (added > 0) {
                 showToast(`${added} reference image(s) added.`);
             }
         });
+    }
+
+    async function restoreImagesFromStorage() {
+        const storedImages = getStoredImages();
+
+        selectedImages = [];
+
+        for (const item of storedImages) {
+            if (!item.dataUrl || !item.name) continue;
+
+            try {
+                const response = await fetch(item.dataUrl);
+                const blob = await response.blob();
+
+                const file = new File([blob], item.name, {
+                    type: item.type || blob.type || "image/jpeg",
+                    lastModified: item.lastModified || Date.now()
+                });
+
+                selectedImages.push({
+                    id: item.id ?? ++imageCounter,
+                    file,
+                    dataUrl: item.dataUrl,
+                    previewUrl: URL.createObjectURL(file)
+                });
+
+                imageCounter = Math.max(
+                    imageCounter,
+                    Number(item.id) || 0
+                );
+            } catch (error) {
+                console.error(
+                    "Could not restore reference image:",
+                    item.name,
+                    error
+                );
+            }
+        }
+
+        renderImages();
     }
 
     // ==========================================
@@ -702,7 +947,11 @@ document.addEventListener("DOMContentLoaded", () => {
             showToast(`${label} copied.`);
         } catch (error) {
             console.error(error);
-            showToast("Unable to copy. Check browser permissions.", "error");
+
+            showToast(
+                "Unable to copy. Check browser permissions.",
+                "error"
+            );
         }
     }
 
@@ -763,6 +1012,9 @@ document.addEventListener("DOMContentLoaded", () => {
     // ==========================================
 
     async function generateParser() {
+        syncCurrentModeFromUI();
+
+        const state = getCurrentState();
         const input = requestInput?.value.trim() || "";
         const selectedFields = getSelectedFields();
 
@@ -781,7 +1033,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
         formData.append("input", input);
         formData.append("mode", currentMode);
-        formData.append("category", categorySelect?.value || "Ecommerce");
+        formData.append(
+            "category",
+            categorySelect?.value || "Ecommerce"
+        );
 
         formData.append(
             "required_fields",
@@ -790,7 +1045,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         formData.append(
             "custom_fields",
-            JSON.stringify(getCurrentState().customFields)
+            JSON.stringify(state.customFields)
         );
 
         formData.append(
@@ -849,34 +1104,40 @@ document.addEventListener("DOMContentLoaded", () => {
                 [];
 
             if (!code) {
-                throw new Error("The backend returned no Python parser code.");
+                throw new Error(
+                    "The backend returned no Python parser code."
+                );
             }
 
-            const codeOutput = $("#code-output");
-            const jsonOutput = $("#json-output");
-
-            if (codeOutput) codeOutput.textContent = code;
-
-            if (jsonOutput) {
-                jsonOutput.textContent =
-                    typeof data === "string"
-                        ? data
-                        : JSON.stringify(data, null, 2);
-            }
-
-            const resultsSection = $("#results-section");
-
-            if (resultsSection) {
-                resultsSection.hidden = false;
-            }
+            const jsonText = typeof data === "string"
+                ? data
+                : JSON.stringify(data, null, 2);
 
             const recordCount = Array.isArray(data) ? data.length : 0;
+            const status = `${recordCount} record(s) extracted`;
 
-            const jsonStatus = $("#json-status");
-
-            if (jsonStatus) {
-                jsonStatus.textContent = `${recordCount} record(s) extracted`;
+            if ($("#code-output")) {
+                $("#code-output").textContent = code;
             }
+
+            if ($("#json-output")) {
+                $("#json-output").textContent = jsonText;
+            }
+
+            if ($("#json-status")) {
+                $("#json-status").textContent = status;
+            }
+
+            if ($("#results-section")) {
+                $("#results-section").hidden = false;
+            }
+
+            // Save results only for the active mode.
+            state.results = {
+                code,
+                json: jsonText,
+                status
+            };
 
             showToast("Parser generated successfully.");
 
@@ -884,22 +1145,34 @@ document.addEventListener("DOMContentLoaded", () => {
             console.error("Parser generation failed:", error);
 
             const message = error.message || "Unexpected error.";
+            const errorCode = `# Parser generation failed\n# ${message}`;
+            const errorJson = JSON.stringify(
+                { error: message },
+                null,
+                2
+            );
 
-            const codeOutput = $("#code-output");
-            const jsonOutput = $("#json-output");
-
-            if (codeOutput) {
-                codeOutput.textContent =
-                    `# Parser generation failed\n# ${message}`;
+            if ($("#code-output")) {
+                $("#code-output").textContent = errorCode;
             }
 
-            if (jsonOutput) {
-                jsonOutput.textContent = JSON.stringify(
-                    { error: message },
-                    null,
-                    2
-                );
+            if ($("#json-output")) {
+                $("#json-output").textContent = errorJson;
             }
+
+            if ($("#json-status")) {
+                $("#json-status").textContent = "Generation failed";
+            }
+
+            if ($("#results-section")) {
+                $("#results-section").hidden = false;
+            }
+
+            state.results = {
+                code: errorCode,
+                json: errorJson,
+                status: "Generation failed"
+            };
 
             showToast(message, "error");
 
@@ -922,11 +1195,15 @@ document.addEventListener("DOMContentLoaded", () => {
     // INITIALIZE
     // ==========================================
 
-    syncCustomFields();
-    renderFields();
-    updateModeUI();
-    updateCharacterCount();
-    renderImages();
+    restoreCurrentModeToUI();
 
-    console.log("NEXRA initialized. Mode-specific fields enabled.");
-}); 
+    // Restore gallery images if available in this browser session.
+    restoreImagesFromStorage().then(() => {
+        // Keep restored images associated with the currently active mode.
+        getCurrentState().images = selectedImages.slice();
+    });
+
+    console.log(
+        "NEXRA initialized with independent CURL and Response mode states."
+    );
+});
