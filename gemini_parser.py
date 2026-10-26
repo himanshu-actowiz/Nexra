@@ -164,7 +164,7 @@ def generate_parser(
     # Gemini Prompt
     # --------------------------------------------------------
     
-    prompt = f"""
+    prompt = """
     You are a senior Python web scraping engineer specializing in
     accurate, robust, dynamic, production-quality HTML and JSON parsing.
 
@@ -843,6 +843,12 @@ def generate_parser(
 
     The function must return the parsed records as a list of dictionaries.
     """
+    prompt = (
+        prompt
+        .replace("__SITE_TYPE__", str(site_type))
+        .replace("__REQUIRED_FIELDS__", str(required_fields))
+        .replace("__RESPONSE_DATA__", str(response_data))
+    )
     # --------------------------------------------------------
     # Try Gemini Keys
     # --------------------------------------------------------
