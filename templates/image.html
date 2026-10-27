@@ -1,0 +1,674 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NEXRA | Reference Images</title>
+
+    <style>
+        :root {
+            --bg: #050d15;
+            --sidebar: #081521;
+            --card: #0b1926;
+            --border: #203b4d;
+            --text: #e8f1fa;
+            --muted: #8ca7bd;
+            --cyan: #13d4dd;
+            --cyan-dark: #105b6b;
+            --danger: #f05270;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            min-height: 100vh;
+            background: var(--bg);
+            color: var(--text);
+            font-family: Arial, Helvetica, sans-serif;
+        }
+
+        button, a {
+            font: inherit;
+        }
+
+        button {
+            cursor: pointer;
+        }
+
+        .layout {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            width: 208px;
+            flex-shrink: 0;
+            background: var(--sidebar);
+            border-right: 1px solid var(--border);
+            padding: 22px 12px;
+        }
+
+        .brand {
+            font-size: 23px;
+            font-weight: 800;
+            letter-spacing: 1px;
+            margin: 0 6px 38px;
+        }
+
+        .nav-heading {
+            color: #7297b5;
+            font-size: 9px;
+            letter-spacing: 1.5px;
+            margin: 0 6px 14px;
+        }
+
+        .nav-link {
+            display: block;
+            padding: 13px 12px;
+            margin-bottom: 8px;
+            border: 1px solid transparent;
+            border-radius: 8px;
+            color: #c7d9e8;
+            text-decoration: none;
+            font-size: 13px;
+        }
+
+        .nav-link.active {
+            color: var(--cyan);
+            background: #0b2531;
+            border-color: #155064;
+        }
+
+        .main {
+            flex: 1;
+            min-width: 0;
+            padding: 26px;
+        }
+
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            color: var(--muted);
+            font-size: 12px;
+            margin-bottom: 28px;
+        }
+
+        .breadcrumb a {
+            color: var(--muted);
+            text-decoration: none;
+        }
+
+        .breadcrumb a:hover {
+            color: var(--cyan);
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-bottom: 25px;
+        }
+
+        .title-wrap h1 {
+            font-size: 25px;
+            margin-bottom: 8px;
+        }
+
+        .title-wrap p {
+            font-size: 13px;
+            color: var(--muted);
+            line-height: 1.6;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 11px 16px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            background: #102130;
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 600;
+            transition: 0.2s ease;
+        }
+
+        .btn:hover {
+            border-color: var(--cyan);
+        }
+
+        .btn-primary {
+            background: var(--cyan-dark);
+            border-color: var(--cyan-dark);
+        }
+
+        .btn-primary:hover {
+            background: #117486;
+        }
+
+        .summary {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            padding: 17px 20px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            margin-bottom: 22px;
+        }
+
+        .summary-title {
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .summary-subtitle {
+            color: var(--muted);
+            font-size: 12px;
+            margin-top: 6px;
+        }
+
+        .count {
+            color: var(--cyan);
+            background: #10323c;
+            border: 1px solid #18515d;
+            border-radius: 20px;
+            padding: 7px 12px;
+            font-size: 12px;
+        }
+
+        .gallery {
+            display: grid;
+            grid-template-columns: repeat(
+                auto-fill,
+                minmax(230px, 1fr)
+            );
+            gap: 18px;
+        }
+
+        .image-card {
+            min-width: 0;
+            overflow: hidden;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 11px;
+            transition: border-color 0.2s, transform 0.2s;
+        }
+
+        .image-card:hover {
+            border-color: #287185;
+            transform: translateY(-2px);
+        }
+
+        .preview {
+            height: 190px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #07121d;
+            border-bottom: 1px solid var(--border);
+            padding: 10px;
+        }
+
+        .preview img {
+            display: block;
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            border-radius: 4px;
+        }
+
+        .image-info {
+            padding: 15px;
+        }
+
+        .image-name {
+            font-size: 13px;
+            font-weight: 600;
+            overflow-wrap: anywhere;
+            line-height: 1.5;
+            margin-bottom: 7px;
+        }
+
+        .image-size {
+            color: var(--muted);
+            font-size: 11px;
+            margin-bottom: 14px;
+        }
+
+        .image-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .remove-btn {
+            flex: 1;
+            padding: 9px 10px;
+            border: 1px solid #713347;
+            border-radius: 7px;
+            color: #ff8ca1;
+            background: #2a1521;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .remove-btn:hover {
+            background: #451a2b;
+            border-color: var(--danger);
+        }
+
+        .empty-state {
+            display: none;
+            min-height: 300px;
+            padding: 35px 20px;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            text-align: center;
+            background: var(--card);
+            border: 1px dashed #315064;
+            border-radius: 12px;
+        }
+
+        .empty-icon {
+            font-size: 38px;
+            margin-bottom: 15px;
+        }
+
+        .empty-state h2 {
+            font-size: 17px;
+            margin-bottom: 9px;
+        }
+
+        .empty-state p {
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.7;
+            margin-bottom: 20px;
+        }
+
+        .toast {
+            position: fixed;
+            right: 22px;
+            bottom: 22px;
+            z-index: 100;
+            max-width: calc(100vw - 44px);
+            padding: 13px 17px;
+            border: 1px solid #28606b;
+            border-radius: 9px;
+            background: #102631;
+            color: var(--text);
+            font-size: 12px;
+            box-shadow: 0 8px 30px #0005;
+            opacity: 0;
+            transform: translateY(10px);
+            pointer-events: none;
+            transition: 0.2s ease;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .toast.error {
+            border-color: #713347;
+        }
+
+        @media (max-width: 700px) {
+            .sidebar {
+                width: 66px;
+                padding: 18px 7px;
+            }
+
+            .brand {
+                font-size: 15px;
+                margin: 0 0 30px;
+                text-align: center;
+            }
+
+            .nav-heading {
+                display: none;
+            }
+
+            .nav-link {
+                padding: 12px 4px;
+                text-align: center;
+                font-size: 10px;
+                overflow-wrap: anywhere;
+            }
+
+            .main {
+                padding: 18px 12px;
+            }
+
+            .title-wrap h1 {
+                font-size: 21px;
+            }
+
+            .gallery {
+                grid-template-columns: repeat(
+                    auto-fill,
+                    minmax(150px, 1fr)
+                );
+                gap: 12px;
+            }
+
+            .preview {
+                height: 145px;
+            }
+
+            .summary {
+                padding: 14px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="brand">NEXRA</div>
+
+            <div class="nav-heading">PARSER TOOLS</div>
+
+            <a class="nav-link" href="/">⌁ &nbsp; Workspace</a>
+
+            <a class="nav-link active" href="/images">
+                ▧ &nbsp; Images
+            </a>
+        </aside>
+
+        <main class="main">
+            <div class="breadcrumb">
+                <a href="/">Workspace</a>
+                <span>/</span>
+                <strong>Reference Images</strong>
+            </div>
+
+            <header class="header">
+                <div class="title-wrap">
+                    <h1>Reference Images</h1>
+                    <p>
+                        View and manage the images used as visual
+                        references for your parser.
+                    </p>
+                </div>
+
+                <a href="/" class="btn btn-primary">
+                    ← Back to Workspace
+                </a>
+            </header>
+
+            <section class="summary">
+                <div>
+                    <div class="summary-title">Your uploaded images</div>
+                    <div class="summary-subtitle">
+                        Remove an image if you no longer need it.
+                    </div>
+                </div>
+
+                <div class="count" id="image-count">0 images</div>
+            </section>
+
+            <section
+                id="gallery"
+                class="gallery"
+                aria-label="Uploaded reference images"
+            ></section>
+
+            <section id="empty-state" class="empty-state">
+                <div class="empty-icon">▧</div>
+                <h2>No reference images yet</h2>
+                <p>
+                    You haven't added any reference images.<br>
+                    Return to your workspace to upload images.
+                </p>
+
+                <a href="/" class="btn btn-primary">
+                    + Add Images in Workspace
+                </a>
+            </section>
+        </main>
+    </div>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <script>
+        (() => {
+            "use strict";
+
+            const STORAGE_KEY = "nexraReferenceImages";
+
+            const gallery = document.getElementById("gallery");
+            const count = document.getElementById("image-count");
+            const emptyState = document.getElementById("empty-state");
+            const toast = document.getElementById("toast");
+
+            let toastTimer;
+
+            function getImages() {
+                try {
+                    const raw = sessionStorage.getItem(STORAGE_KEY);
+
+                    if (!raw) return [];
+
+                    const parsed = JSON.parse(raw);
+
+                    return Array.isArray(parsed) ? parsed : [];
+                } catch (error) {
+                    console.error(
+                        "Could not load reference images:",
+                        error
+                    );
+
+                    showToast(
+                        "Could not read the saved images.",
+                        true
+                    );
+
+                    return [];
+                }
+            }
+
+            function saveImages(images) {
+                try {
+                    sessionStorage.setItem(
+                        STORAGE_KEY,
+                        JSON.stringify(images)
+                    );
+
+                    return true;
+                } catch (error) {
+                    console.error(
+                        "Could not save reference images:",
+                        error
+                    );
+
+                    showToast(
+                        "Could not save the image changes.",
+                        true
+                    );
+
+                    return false;
+                }
+            }
+
+            function formatSize(bytes) {
+                const size = Number(bytes) || 0;
+
+                if (size < 1024) {
+                    return `${size} B`;
+                }
+
+                if (size < 1024 * 1024) {
+                    return `${(size / 1024).toFixed(1)} KB`;
+                }
+
+                return `${(size / (1024 * 1024)).toFixed(2)} MB`;
+            }
+
+            function showToast(message, isError = false) {
+                toast.textContent = message;
+                toast.classList.toggle("error", isError);
+                toast.classList.add("show");
+
+                clearTimeout(toastTimer);
+
+                toastTimer = setTimeout(() => {
+                    toast.classList.remove("show");
+                }, 2800);
+            }
+
+            function createImageCard(image, index) {
+                const card = document.createElement("article");
+                card.className = "image-card";
+
+                const preview = document.createElement("div");
+                preview.className = "preview";
+
+                const img = document.createElement("img");
+                img.alt = image.name || `Reference image ${index + 1}`;
+                img.loading = "lazy";
+
+                if (image.dataUrl) {
+                    img.src = image.dataUrl;
+                } else {
+                    img.alt = "Image preview unavailable";
+                }
+
+                img.addEventListener("error", () => {
+                    img.style.display = "none";
+
+                    const fallback = document.createElement("span");
+                    fallback.textContent = "Preview unavailable";
+                    fallback.style.color = "#8ca7bd";
+                    fallback.style.fontSize = "12px";
+
+                    preview.appendChild(fallback);
+                });
+
+                preview.appendChild(img);
+
+                const info = document.createElement("div");
+                info.className = "image-info";
+
+                const name = document.createElement("div");
+                name.className = "image-name";
+                name.textContent = image.name || `Image ${index + 1}`;
+
+                const size = document.createElement("div");
+                size.className = "image-size";
+                size.textContent = formatSize(image.size);
+
+                const actions = document.createElement("div");
+                actions.className = "image-actions";
+
+                const remove = document.createElement("button");
+                remove.type = "button";
+                remove.className = "remove-btn";
+                remove.textContent = "Remove Image";
+
+                remove.addEventListener("click", () => {
+                    removeImage(image, index);
+                });
+
+                actions.appendChild(remove);
+                info.append(name, size, actions);
+                card.append(preview, info);
+
+                return card;
+            }
+
+            function renderGallery() {
+                const images = getImages();
+
+                gallery.replaceChildren();
+
+                count.textContent =
+                    `${images.length} image${images.length === 1 ? "" : "s"}`;
+
+                emptyState.style.display =
+                    images.length === 0 ? "flex" : "none";
+
+                gallery.style.display =
+                    images.length === 0 ? "none" : "grid";
+
+                images.forEach((image, index) => {
+                    gallery.appendChild(
+                        createImageCard(image, index)
+                    );
+                });
+            }
+
+            function removeImage(image, index) {
+                const name = image.name || `Image ${index + 1}`;
+
+                const confirmed = window.confirm(
+                    `Remove "${name}" from your reference images?`
+                );
+
+                if (!confirmed) return;
+
+                const images = getImages();
+
+                // Prefer a unique ID when one is available.
+                let removeIndex = -1;
+
+                if (image.id !== undefined && image.id !== null) {
+                    removeIndex = images.findIndex(
+                        (item) => item.id === image.id
+                    );
+                }
+
+                // Fallback for image records without an ID.
+                if (removeIndex === -1 && images[index] === image) {
+                    removeIndex = index;
+                }
+
+                if (removeIndex === -1) {
+                    removeIndex = images.findIndex((item) =>
+                        item.name === image.name &&
+                        item.size === image.size &&
+                        item.dataUrl === image.dataUrl
+                    );
+                }
+
+                if (removeIndex === -1) {
+                    showToast(
+                        "Image not found. Refreshing the gallery.",
+                        true
+                    );
+
+                    renderGallery();
+                    return;
+                }
+
+                images.splice(removeIndex, 1);
+
+                if (!saveImages(images)) return;
+
+                renderGallery();
+
+                showToast(`Removed "${name}".`);
+            }
+
+            renderGallery();
+        })();
+    </script>
+</body>
+</html>

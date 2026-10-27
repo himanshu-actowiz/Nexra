@@ -34,6 +34,10 @@ WEBSITE_TYPES = [
 def home():
     return render_template("index.html")
 
+@app.get("/images")
+def images_page():
+    return render_template("image.html")
+
 
 @app.get("/script.js")
 def serve_script():
