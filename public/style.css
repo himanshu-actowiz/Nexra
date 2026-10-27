@@ -1792,3 +1792,84 @@ input[type="checkbox"] {
         max-height: 180px !important;
     }
 }
+
+/* ==========================================
+   SHOW IMAGES BUTTON
+========================================== */
+
+.show-images-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    margin-top: 14px;
+    width: 100%;
+}
+
+#show-images-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+
+    min-height: 40px;
+    padding: 10px 18px;
+
+    background: linear-gradient(135deg, #12cfd8, #20c9b7);
+    color: #04121a;
+
+    border: 1px solid #20cfd4;
+    border-radius: 8px;
+
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.4;
+
+    cursor: pointer;
+    text-decoration: none;
+
+    box-shadow: 0 4px 14px rgba(18, 207, 216, 0.12);
+
+    transition:
+        background 0.2s ease,
+        box-shadow 0.2s ease,
+        transform 0.2s ease;
+}
+
+#show-images-btn::before {
+    content: "▧";
+    font-size: 15px;
+}
+
+#show-images-btn:hover {
+    background: linear-gradient(135deg, #27e0e5, #32dbc8);
+    box-shadow: 0 6px 18px rgba(18, 207, 216, 0.22);
+    transform: translateY(-1px);
+}
+
+#show-images-btn:active {
+    transform: translateY(0);
+}
+
+#show-images-btn:focus-visible {
+    outline: 2px solid #13d4dd;
+    outline-offset: 3px;
+}
+
+/* Keep the button inside the reference image card */
+.show-images-wrapper,
+#show-images-btn {
+    box-sizing: border-box;
+}
+
+/* Mobile layout */
+@media (max-width: 600px) {
+    .show-images-wrapper {
+        margin-top: 12px;
+    }
+
+    #show-images-btn {
+        width: 100%;
+        min-height: 42px;
+    }
+}
