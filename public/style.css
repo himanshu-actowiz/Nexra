@@ -1930,3 +1930,53 @@ input[type="checkbox"] {
         margin-top: 14px;
     }
 }
+
+/* Additional Prompt - Optional Badge */
+
+.additional-prompt-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.additional-prompt-header .optional-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    padding: 3px 7px;
+    border: 1px solid #29485d;
+    border-radius: 4px;
+
+    color: #8ca7bd;
+    background: transparent;
+
+    font-size: 9px;
+    font-weight: 400;
+    line-height: 1.4;
+}
+
+/* Align Select All checkbox and label */
+.select-all-wrapper {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 5px;
+    white-space: nowrap;
+    line-height: 1;
+}
+
+.select-all-wrapper input[type="checkbox"] {
+    margin: 0;
+    flex-shrink: 0;
+    vertical-align: middle;
+}
+
+.select-all-wrapper label,
+.select-all-wrapper span {
+    margin: 0;
+    padding: 0;
+    line-height: 1.2;
+    display: inline-flex;
+    align-items: center;
+}
