@@ -1184,7 +1184,27 @@ document.addEventListener("DOMContentLoaded", () => {
                 body: formData
             });
 
-            const result = await response.json();
+            const responseText = await response.text();
+
+            let result;
+
+            try {
+                result = JSON.parse(responseText);
+            } catch (error) {
+                const contentType = response.headers.get("content-type") || "";
+
+                if (responseText.trim().startsWith("<")) {
+                    throw new Error(
+                        `Server returned HTML instead of JSON (HTTP ${response.status}). ` +
+                        "Check Flask logs and the /api/generate endpoint."
+                    );
+                }
+
+                throw new Error(
+                    `Invalid server response (HTTP ${response.status}). ` +
+                    "The server did not return valid JSON."
+                );
+            }
 
             if (!response.ok || result.success === false) {
                 throw new Error(
@@ -1249,39 +1269,37 @@ document.addEventListener("DOMContentLoaded", () => {
             showToast("Parser generated successfully.");
 
         } catch (error) {
-            console.error("Parser generation failed:", error);
+        console.error("Parser generation failed:", error);
 
-            const message = error.message || "Unexpected error.";
-            const errorCode = `# Parser generation failed\n# ${message}`;
-            const errorJson = JSON.stringify(
-                { error: message },
-                null,
-                2
-            );
+        const message =
+            error.message || "Something went wrong. Please try again.";
 
-            if ($("#code-output")) {
-                $("#code-output").textContent = errorCode;
-            }
+        // Hide output panels when generation fails
+        const resultsSection = $("#results-section");
 
-            if ($("#json-output")) {
-                $("#json-output").textContent = errorJson;
-            }
+        if (resultsSection) {
+            resultsSection.hidden = true;
+        }
 
-            if ($("#json-status")) {
-                $("#json-status").textContent = "Generation failed";
-            }
+        // Clear old output from the screen
+        if ($("#code-output")) {
+            $("#code-output").textContent = "";
+        }
 
-            if ($("#results-section")) {
-                $("#results-section").hidden = false;
-            }
+        if ($("#json-output")) {
+            $("#json-output").textContent = "";
+        }
 
-            state.results = {
-                code: errorCode,
-                json: errorJson,
-                status: "Generation failed"
-            };
+        if ($("#json-status")) {
+            $("#json-status").textContent = "";
+        }
 
-            showToast(message, "error");
+        // Do not restore failed results later
+        state.results = null;
+        saveWorkspaceState();
+
+        // Show the actual error in the red popup
+        showToast(message, "error");
 
         } finally {
             if (generateButton) {

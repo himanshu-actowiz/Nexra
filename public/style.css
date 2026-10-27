@@ -1980,3 +1980,44 @@ input[type="checkbox"] {
     display: inline-flex;
     align-items: center;
 }
+
+.required-star {
+    color: #ff4d4f;
+    font-size: 16px;
+    font-weight: 700;
+    margin-left: 3px;
+}
+
+/* Error toast - bottom right */
+#toast {
+    position: fixed;
+    right: 24px;
+    bottom: 24px;
+    left: auto;
+    top: auto;
+    z-index: 99999;
+    max-width: min(420px, calc(100vw - 32px));
+    padding: 14px 18px;
+    border: 1px solid #ef4444;
+    border-left: 4px solid #ef4444;
+    border-radius: 10px;
+    background: #2b1116;
+    color: #fecaca;
+    font-size: 14px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.4);
+}
+
+/* Keep the toast hidden until triggered */
+#toast:not(.show) {
+    display: none;
+}
+
+/* Error styling */
+#toast.error {
+    border-color: #ef4444;
+    border-left-color: #ef4444;
+    background: #2b1116;
+    color: #fecaca;
+}
