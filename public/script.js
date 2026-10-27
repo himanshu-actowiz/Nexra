@@ -1117,6 +1117,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // GENERATE PARSER
     // ==========================================
 
+        
     async function generateParser() {
         syncCurrentModeFromUI();
 
@@ -1124,14 +1125,68 @@ document.addEventListener("DOMContentLoaded", () => {
         const input = requestInput?.value.trim() || "";
         const selectedFields = getSelectedFields();
 
+        // Hide old output before starting a new request
+        const resultsSection = $("#results-section");
+        const codeOutput = $("#code-output");
+        const jsonOutput = $("#json-output");
+        const jsonStatus = $("#json-status");
+
+        function hideResults() {
+            if (resultsSection) {
+                resultsSection.hidden = true;
+                resultsSection.style.display = "none";
+            }
+
+            // Hide each output panel as well
+            [codeOutput, jsonOutput].forEach((element) => {
+                const panel = element?.closest(".panel");
+
+                if (panel) {
+                    panel.hidden = true;
+                    panel.style.display = "none";
+                }
+
+                if (element) {
+                    element.textContent = "";
+                }
+            });
+
+            if (jsonStatus) {
+                jsonStatus.textContent = "";
+            }
+        }
+
+        function showResults() {
+            if (resultsSection) {
+                resultsSection.hidden = false;
+                resultsSection.style.display = "";
+            }
+
+            [codeOutput, jsonOutput].forEach((element) => {
+                const panel = element?.closest(".panel");
+
+                if (panel) {
+                    panel.hidden = false;
+                    panel.style.display = "";
+                }
+            });
+        }
+
+        function handleError(message) {
+            hideResults();
+            state.results = null;
+            saveWorkspaceState();
+            showToast(message, "error");
+        }
+
         if (!input) {
-            showToast("Please enter input first.", "error");
+            handleError("Please enter input first.");
             requestInput?.focus();
             return;
         }
 
         if (selectedFields.length === 0) {
-            showToast("Please select at least one field.", "error");
+            handleError("Please select at least one field.");
             return;
         }
 
@@ -1139,30 +1194,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
         formData.append("input", input);
         formData.append("mode", currentMode);
-        formData.append(
-            "category",
-            categorySelect?.value || "Ecommerce"
-        );
-
-        formData.append(
-            "required_fields",
-            JSON.stringify(selectedFields)
-        );
-
-        formData.append(
-            "custom_fields",
-            JSON.stringify(state.customFields)
-        );
-
-        formData.append(
-            "response_type",
-            responseType?.value || "json"
-        );
-
-        formData.append(
-            "prompt",
-            additionalPromptInput?.value.trim() || ""
-        );
+        formData.append("category", categorySelect?.value || "Ecommerce");
+        formData.append("required_fields", JSON.stringify(selectedFields));
+        formData.append("custom_fields", JSON.stringify(state.customFields));
+        formData.append("response_type", responseType?.value || "json");
+        formData.append("prompt", additionalPromptInput?.value.trim() || "");
 
         selectedImages.forEach((item, index) => {
             formData.append(
@@ -1174,6 +1210,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const originalButtonText = generateButton?.innerHTML;
 
         try {
+            hideResults();
+
             if (generateButton) {
                 generateButton.disabled = true;
                 generateButton.textContent = "Generating...";
@@ -1190,19 +1228,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
             try {
                 result = JSON.parse(responseText);
-            } catch (error) {
-                const contentType = response.headers.get("content-type") || "";
-
+            } catch {
                 if (responseText.trim().startsWith("<")) {
                     throw new Error(
-                        `Server returned HTML instead of JSON (HTTP ${response.status}). ` +
-                        "Check Flask logs and the /api/generate endpoint."
+                        `Server returned HTML instead of JSON (HTTP ${response.status}). Check Flask logs and the /api/generate endpoint.`
                     );
                 }
 
                 throw new Error(
-                    `Invalid server response (HTTP ${response.status}). ` +
-                    "The server did not return valid JSON."
+                    `Invalid server response (HTTP ${response.status}). The server did not return valid JSON.`
                 );
             }
 
@@ -1242,64 +1276,27 @@ document.addEventListener("DOMContentLoaded", () => {
             const recordCount = Array.isArray(data) ? data.length : 0;
             const status = `${recordCount} record(s) extracted`;
 
-            if ($("#code-output")) {
-                $("#code-output").textContent = code;
-            }
+            if (codeOutput) codeOutput.textContent = code;
+            if (jsonOutput) jsonOutput.textContent = jsonText;
+            if (jsonStatus) jsonStatus.textContent = status;
 
-            if ($("#json-output")) {
-                $("#json-output").textContent = jsonText;
-            }
-
-            if ($("#json-status")) {
-                $("#json-status").textContent = status;
-            }
-
-            if ($("#results-section")) {
-                $("#results-section").hidden = false;
-            }
-
-            // Save results only for the active mode.
             state.results = {
                 code,
                 json: jsonText,
                 status
             };
+
             saveWorkspaceState();
+            showResults();
 
             showToast("Parser generated successfully.");
 
         } catch (error) {
-        console.error("Parser generation failed:", error);
+            console.error("Parser generation failed:", error);
 
-        const message =
-            error.message || "Something went wrong. Please try again.";
-
-        // Hide output panels when generation fails
-        const resultsSection = $("#results-section");
-
-        if (resultsSection) {
-            resultsSection.hidden = true;
-        }
-
-        // Clear old output from the screen
-        if ($("#code-output")) {
-            $("#code-output").textContent = "";
-        }
-
-        if ($("#json-output")) {
-            $("#json-output").textContent = "";
-        }
-
-        if ($("#json-status")) {
-            $("#json-status").textContent = "";
-        }
-
-        // Do not restore failed results later
-        state.results = null;
-        saveWorkspaceState();
-
-        // Show the actual error in the red popup
-        showToast(message, "error");
+            handleError(
+                error.message || "Something went wrong. Please try again."
+            );
 
         } finally {
             if (generateButton) {
@@ -1311,6 +1308,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         }
     }
+
 
     if (generateButton) {
         generateButton.addEventListener("click", generateParser);
