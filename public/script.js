@@ -139,7 +139,14 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // Restore saved state before displaying the workspace.
+    // Clear workspace data on page refresh.
+    const navigationEntry = performance.getEntriesByType("navigation")[0];
+
+    if (navigationEntry?.type === "reload") {
+        sessionStorage.removeItem(WORKSPACE_STORAGE_KEY);
+        sessionStorage.removeItem(IMAGE_STORAGE_KEY);
+    }
+
     restoreWorkspaceState();
 
     function getCurrentState() {
@@ -1230,8 +1237,21 @@ document.addEventListener("DOMContentLoaded", () => {
                 result = JSON.parse(responseText);
             } catch {
                 if (responseText.trim().startsWith("<")) {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(responseText, "text/html");
+
+                    const title = doc.querySelector("title")?.textContent?.trim();
+                    const bodyText = doc.body?.innerText?.trim();
+
+                    const errorMessage =
+                        doc.querySelector("pre")?.innerText?.trim() ||
+                        doc.querySelector(".error")?.textContent?.trim() ||
+                        bodyText ||
+                        title ||
+                        `HTTP ${response.status}: Server error`;
+
                     throw new Error(
-                        `Server returned HTML instead of JSON (HTTP ${response.status}). Check Flask logs and the /api/generate endpoint.`
+                        errorMessage.slice(0, 1000)
                     );
                 }
 
