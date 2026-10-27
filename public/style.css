@@ -1873,3 +1873,60 @@ input[type="checkbox"] {
         min-height: 42px;
     }
 }
+
+
+/* Reference Images card spacing */
+.reference-images-card {
+    padding-bottom: 20px;
+}
+
+/* Center the Show Images button */
+.show-images-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    margin-top: 12px;
+}
+
+/* Show Images button */
+#show-images-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+
+    min-width: 125px;
+    min-height: 38px;
+    padding: 10px 16px;
+
+    border: none;
+    border-radius: 8px;
+
+    background: linear-gradient(135deg, #13d4dd, #20c9b7);
+    color: #04121a;
+
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+
+    cursor: pointer;
+    transition: 0.2s ease;
+}
+
+#show-images-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(19, 212, 221, 0.2);
+}
+
+/* Keep the 3-column layout aligned */
+.reference-images-card {
+    align-self: stretch;
+    min-width: 0;
+}
+
+@media (max-width: 600px) {
+    .show-images-wrapper {
+        margin-top: 14px;
+    }
+}
