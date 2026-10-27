@@ -668,7 +668,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // REFERENCE IMAGES
     // ==========================================
 
-    const showImagesButton = $("#show-images-button");
+    const showImagesButton = $("#show-images-btn");;
     const imageCountElement = $("#image-count");
 
     const IMAGE_STORAGE_KEY = "nexraReferenceImages";
