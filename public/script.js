@@ -53,6 +53,94 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     let selectedImages = [];
+    // ==========================================
+    // SAVE AND RESTORE WORKSPACE STATE
+    // ==========================================
+
+    const WORKSPACE_STORAGE_KEY = "nexraWorkspaceState";
+
+    function saveWorkspaceState() {
+        try {
+            const modes = {};
+
+            for (const mode of ["curl", "response"]) {
+                const state = modeState[mode];
+
+                modes[mode] = {
+                    input: state.input || "",
+                    category: state.category || "Ecommerce",
+                    additionalPrompt: state.additionalPrompt || "",
+                    responseType: state.responseType || "json",
+                    selectedFields: [...state.selectedFields],
+                    customFields: [...state.customFields],
+                    results: state.results || null
+                };
+            }
+
+            sessionStorage.setItem(
+                WORKSPACE_STORAGE_KEY,
+                JSON.stringify({
+                    currentMode,
+                    customFieldInput: customFieldInput?.value || "",
+                    modes
+                })
+            );
+        } catch (error) {
+            console.warn("Could not save workspace state:", error);
+        }
+    }
+
+    function restoreWorkspaceState() {
+        try {
+            const saved = sessionStorage.getItem(WORKSPACE_STORAGE_KEY);
+
+            if (!saved) return;
+
+            const parsed = JSON.parse(saved);
+
+            if (parsed.currentMode === "curl" ||
+                parsed.currentMode === "response") {
+                currentMode = parsed.currentMode;
+            }
+
+            for (const mode of ["curl", "response"]) {
+                const savedMode = parsed.modes?.[mode];
+
+                if (!savedMode) continue;
+
+                modeState[mode].input = savedMode.input || "";
+                modeState[mode].category = savedMode.category || "Ecommerce";
+                modeState[mode].additionalPrompt =
+                    savedMode.additionalPrompt || "";
+
+                modeState[mode].responseType =
+                    savedMode.responseType === "html" ? "html" : "json";
+
+                modeState[mode].selectedFields = new Set(
+                    Array.isArray(savedMode.selectedFields)
+                        ? savedMode.selectedFields
+                        : []
+                );
+
+                modeState[mode].customFields =
+                    Array.isArray(savedMode.customFields)
+                        ? savedMode.customFields
+                        : [];
+
+                modeState[mode].results = savedMode.results || null;
+            }
+
+            if (customFieldInput &&
+                typeof parsed.customFieldInput === "string") {
+                customFieldInput.value = parsed.customFieldInput;
+            }
+        } catch (error) {
+            console.warn("Could not restore workspace state:", error);
+        }
+    }
+
+    // Restore saved state before displaying the workspace.
+    restoreWorkspaceState();
 
     function getCurrentState() {
         return modeState[currentMode];
@@ -371,6 +459,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
 
                 updateSelectAllState();
+                saveWorkspaceState();
             });
 
             label.append(checkbox, span);
@@ -409,6 +498,7 @@ document.addEventListener("DOMContentLoaded", () => {
             });
 
             updateSelectAllState();
+            saveWorkspaceState();
         });
     }
 
@@ -422,6 +512,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             saveCurrentFieldSelections();
             renderFields();
+            saveWorkspaceState();
         });
     }
 
@@ -468,6 +559,7 @@ document.addEventListener("DOMContentLoaded", () => {
         customFieldInput.value = "";
 
         renderFields();
+        saveWorkspaceState();
 
         showToast(`Custom field "${field}" added.`);
     }
@@ -479,7 +571,12 @@ document.addEventListener("DOMContentLoaded", () => {
             if (event.key === "Enter") {
                 event.preventDefault();
                 addCustomField();
+                saveWorkspaceState();
             }
+        });
+
+        customFieldInput.addEventListener("input", () => {
+            saveWorkspaceState();
         });
     }
 
@@ -615,6 +712,7 @@ document.addEventListener("DOMContentLoaded", () => {
         responseType.addEventListener("change", () => {
             getCurrentState().responseType = responseType.value;
             updateResponseType();
+            saveWorkspaceState();
         });
     }
 
@@ -622,6 +720,7 @@ document.addEventListener("DOMContentLoaded", () => {
         requestInput.addEventListener("input", () => {
             getCurrentState().input = requestInput.value;
             updateCharacterCount();
+            saveWorkspaceState();
         });
     }
 
@@ -629,6 +728,7 @@ document.addEventListener("DOMContentLoaded", () => {
         additionalPromptInput.addEventListener("input", () => {
             getCurrentState().additionalPrompt =
                 additionalPromptInput.value;
+            saveWorkspaceState();
         });
     }
 
@@ -822,7 +922,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (showImagesButton) {
         showImagesButton.addEventListener("click", () => {
+            syncCurrentModeFromUI();
+
             getCurrentState().images = selectedImages.slice();
+
+            saveWorkspaceState();
             saveImagesToStorage();
 
             window.location.href = "/images";
@@ -1140,6 +1244,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 json: jsonText,
                 status
             };
+            saveWorkspaceState();
 
             showToast("Parser generated successfully.");
 
