@@ -58,6 +58,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // ==========================================
 
     const WORKSPACE_STORAGE_KEY = "nexraWorkspaceState";
+    const IMAGE_STORAGE_KEY = "nexraReferenceImages";
 
     function saveWorkspaceState() {
         try {
@@ -778,7 +779,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const showImagesButton = $("#show-images-btn");;
     const imageCountElement = $("#image-count");
 
-    const IMAGE_STORAGE_KEY = "nexraReferenceImages";
+    
     const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
     const ALLOWED_IMAGE_TYPES = [
         "image/png",
