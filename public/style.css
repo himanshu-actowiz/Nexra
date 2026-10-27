@@ -1957,7 +1957,7 @@ input[type="checkbox"] {
 }
 
 /* Align Select All checkbox and label */
-.select-all-wrapper {
+.select-all-label {
     display: inline-flex;
     align-items: center;
     justify-content: flex-end;
@@ -1966,14 +1966,14 @@ input[type="checkbox"] {
     line-height: 1;
 }
 
-.select-all-wrapper input[type="checkbox"] {
+.select-all-label input[type="checkbox"] {
     margin: 0;
     flex-shrink: 0;
     vertical-align: middle;
 }
 
-.select-all-wrapper label,
-.select-all-wrapper span {
+.select-all-label label,
+.select-all-label span {
     margin: 0;
     padding: 0;
     line-height: 1.2;
