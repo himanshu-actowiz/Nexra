@@ -1290,9 +1290,15 @@ document.addEventListener("DOMContentLoaded", () => {
                 );
             }
 
-            const jsonText = typeof data === "string"
-                ? data
-                : JSON.stringify(data, null, 2);
+            const orderedData = Array.isArray(data)
+                ? data.map((item) => orderObjectKeys(item, selectedFields))
+                : data && typeof data === "object"
+                    ? orderObjectKeys(data, selectedFields)
+                    : data;
+
+            const jsonText = typeof orderedData === "string"
+                ? orderedData
+                : JSON.stringify(orderedData, null, 4);
 
             const recordCount = Array.isArray(data) ? data.length : 0;
             const status = `${recordCount} record(s) extracted`;
@@ -1330,6 +1336,29 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    function orderObjectKeys(obj, fields) {
+        if (!obj || typeof obj !== "object" || Array.isArray(obj)) {
+            return obj;
+        }
+
+        const ordered = {};
+
+        // Add selected fields first, in their selected order
+        fields.forEach((field) => {
+            if (Object.prototype.hasOwnProperty.call(obj, field)) {
+                ordered[field] = obj[field];
+            }
+        });
+
+        // Keep remaining fields after selected fields
+        Object.keys(obj).forEach((key) => {
+            if (!Object.prototype.hasOwnProperty.call(ordered, key)) {
+                ordered[key] = obj[key];
+            }
+        });
+
+        return ordered;
+    }
 
     if (generateButton) {
         generateButton.addEventListener("click", generateParser);
