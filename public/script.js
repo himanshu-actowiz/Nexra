@@ -708,9 +708,16 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         if (requestInput) {
-            requestInput.placeholder = isHtml
-                ? '<div class="product">\n  <h2>Example Product</h2>\n</div>'
-                : '{\n  "products": [\n    { "name": "Example Product", "price": 29.99 }\n  ]\n}';
+            if (currentMode === "curl") {
+                requestInput.placeholder =
+                    "Paste your complete cURL command here...";
+            } else if (isHtml) {
+                requestInput.placeholder =
+                    '<div class="product">\n  <h2>Example Product</h2>\n</div>';
+            } else {
+                requestInput.placeholder =
+                    '{\n  "products": [\n    { "name": "Example Product", "price": 29.99 }\n  ]\n}';
+            }
         }
 
         updateCharacterCount();
